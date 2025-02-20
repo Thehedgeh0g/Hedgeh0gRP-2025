@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Результаты оценки</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        h2 {
+            font-size: 26px;
+            margin-bottom: 20px;
+            color: #4CAF50;
+        }
+
+        p {
+            font-size: 18px;
+            margin: 10px 0;
+            color: #555;
+        }
+
+        .result-label {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .result-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .highlight {
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Результаты оценки</h2>
+    <p><span class="result-label">Оценка содержания:</span> <span class="result-value highlight">{{.Rank}}</span></p>
+    <p><span class="result-label">Схожесть:</span> <span class="result-value highlight">{{.Similarity}}</span></p>
+</div>
+</body>
+</html>
