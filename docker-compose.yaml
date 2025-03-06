@@ -17,26 +17,40 @@ services:
       valuator2:
         condition: service_healthy
 
-  valuator2:
-    container_name: valuator
-    build:
-      context: ./microservices/valuator
-      dockerfile: Dockerfile
-    networks:
-      - app-network
-    environment:
-      PORT: 5002
-    depends_on:
-      redis:
-        condition: service_healthy
-
   valuator1:
-    container_name: valuator
+    container_name: valuator1
     build:
       context: ./microservices/valuator
       dockerfile: Dockerfile
     environment:
       PORT: 5001
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:5001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  valuator2:
+    container_name: valuator2
+    build:
+      context: ./microservices/valuator
+      dockerfile: Dockerfile
+    environment:
+      PORT: 5002
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:5002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     depends_on:
       redis:
         condition: service_healthy
@@ -60,5 +74,4 @@ networks:
   app-network:
 
 volumes:
-  db-data:
   redis_data:

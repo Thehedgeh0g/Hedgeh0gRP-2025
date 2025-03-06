@@ -20,6 +20,8 @@ RUN go build -o ./bin/main ./cmd/main.go
 # Финальный образ с минимальным размером
 FROM alpine:latest
 
+RUN apk add --no-cache curl
+
 # Устанавливаем рабочую директорию
 WORKDIR /app
 

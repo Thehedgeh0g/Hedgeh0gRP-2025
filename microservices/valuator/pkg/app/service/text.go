@@ -21,7 +21,7 @@ func (s *TextService) ProcessText(data string) (uuid.UUID, error) {
 	hash := sha256.New()
 	hash.Write([]byte(data))
 	hashedStr := hex.EncodeToString(hash.Sum(nil))
-	id, err := s.textRepository.FindByData(hashedStr)
+	id, err := s.textRepository.FindByHash(hashedStr)
 	if err != nil && !errors.Is(err, model.ErrTextNotFound) {
 		return uuid.MustParse(id), err
 	}

@@ -34,12 +34,23 @@ func main() {
 	if value == "" {
 		value = "8082"
 	}
+	fmt.Println("Listening on port " + value)
 	http.HandleFunc("/", homeHandler)
 	http.HandleFunc("/summary", summaryHandler)
 	http.HandleFunc("/about", aboutHandler)
+	http.HandleFunc("/health", healthCheck)
 	err := http.ListenAndServe(":"+value, nil)
 	if err != nil {
-		return
+		panic(err)
+	}
+	fmt.Println("Listening on port " + value)
+}
+
+func healthCheck(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	_, err := w.Write([]byte("OK"))
+	if err != nil {
+		fmt.Println(err.Error())
 	}
 }
 

@@ -45,7 +45,7 @@ func (t *TextRepository) Store(text model.Text) error {
 	return nil
 }
 
-// FindByData ищет текст в Redis по его данным.
+// FindByHash ищет текст в Redis по его данным.
 // DONE: переименовать
 func (t *TextRepository) FindByHash(data string) (string, error) {
 	id, err := t.redisClient.Get(t.ctx, textValue+data).Result()
