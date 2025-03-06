@@ -17,7 +17,8 @@ type TextStats struct {
 
 type TextRepository interface {
 	Store(text Text) error
-	FindByData(text Text) (Text, error)
+	FindByHash(data string) (string, error)
+	FindByID(id uuid.UUID) (Text, error)
 }
 
 type Text struct {
@@ -52,7 +53,7 @@ func (t *Text) GetRank() float64 {
 	alphabetCount := float64(len(re.FindAllString(t.data, -1)))
 	totalCount := float64(len(t.data))
 
-	return alphabetCount / totalCount
+	return 1 - (alphabetCount / totalCount)
 }
 
 func (t *Text) GetData() string {

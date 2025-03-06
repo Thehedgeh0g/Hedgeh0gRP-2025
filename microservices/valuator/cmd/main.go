@@ -27,7 +27,6 @@ func init() {
 }
 
 func main() {
-
 	http.HandleFunc("/", homeHandler)
 	http.HandleFunc("/summary", summaryHandler)
 	http.HandleFunc("/about", aboutHandler)

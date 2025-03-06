@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"strconv"
+
 	"valuator/pkg/app/model"
 )
 
@@ -29,7 +30,7 @@ func NewTextRepository(redisClient *redis.Client) *TextRepository {
 
 // Store сохраняет текст в Redis. Устанавливает ранг и схожесть для текста, если необходимо.
 func (t *TextRepository) Store(text model.Text) error {
-	if err := t.redisClient.Set(t.ctx, textValue+text.GetID().String(), text.GetData(), 0).Err(); err != nil {
+	if err := t.redisClient.Set(t.ctx, textValue+text.GetData(), text.GetID().String(), 0).Err(); err != nil {
 		return err
 	}
 	if err := t.redisClient.Set(t.ctx, textRank+text.GetID().String(), text.GetRank(), 0).Err(); err != nil {
@@ -45,15 +46,16 @@ func (t *TextRepository) Store(text model.Text) error {
 }
 
 // FindByData ищет текст в Redis по его данным.
-func (t *TextRepository) FindByData(text model.Text) (model.Text, error) {
-	textData, err := t.redisClient.Get(t.ctx, text.GetData()).Result()
+// DONE: переименовать
+func (t *TextRepository) FindByHash(data string) (string, error) {
+	id, err := t.redisClient.Get(t.ctx, textValue+data).Result()
 	if errors.Is(err, redis.Nil) {
-		return model.Text{}, model.ErrTextNotFound
+		return "", model.ErrTextNotFound
 	}
 	if err != nil {
-		return model.Text{}, err
+		return "", err
 	}
-	return model.NewText(textData), nil
+	return id, nil
 }
 
 func (t *TextRepository) FindByID(id uuid.UUID) (model.Text, error) {
@@ -65,10 +67,6 @@ func (t *TextRepository) FindByID(id uuid.UUID) (model.Text, error) {
 	if err != nil {
 		return model.Text{}, err
 	}
-	data, err := t.redisClient.Get(t.ctx, textValue+id.String()).Result()
-	if err != nil {
-		return model.Text{}, err
-	}
 	rank, err := strconv.ParseFloat(rankStr, 64)
 	if err != nil {
 		return model.Text{}, err
@@ -77,5 +75,5 @@ func (t *TextRepository) FindByID(id uuid.UUID) (model.Text, error) {
 	if err != nil {
 		return model.Text{}, err
 	}
-	return model.BuildTextFromSavedData(data, id, similarity, rank), nil
+	return model.BuildTextFromSavedData("", id, similarity, rank), nil
 }
