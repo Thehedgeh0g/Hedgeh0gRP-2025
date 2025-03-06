@@ -3,10 +3,13 @@ package main
 import (
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"html/template"
 	"log"
 	"net/http"
+	"os"
+
+	"github.com/redis/go-redis/v9"
+
 	"valuator/pkg/Infrastructure/repository"
 	"valuator/pkg/app/service"
 )
@@ -27,10 +30,14 @@ func init() {
 }
 
 func main() {
+	value := os.Getenv("PORT")
+	if value == "" {
+		value = "8082"
+	}
 	http.HandleFunc("/", homeHandler)
 	http.HandleFunc("/summary", summaryHandler)
 	http.HandleFunc("/about", aboutHandler)
-	err := http.ListenAndServe(":8082", nil)
+	err := http.ListenAndServe(":"+value, nil)
 	if err != nil {
 		return
 	}
