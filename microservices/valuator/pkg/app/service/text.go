@@ -4,37 +4,37 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"github.com/google/uuid"
 
+	appevent "valuator/pkg/app/event"
 	"valuator/pkg/app/model"
 )
 
 type TextService struct {
-	textRepository model.TextRepository
+	textRepository  model.TextRepository
+	eventDispatcher appevent.EventDispatcher
 }
 
-func NewTextService(textRepository model.TextRepository) *TextService {
-	return &TextService{textRepository: textRepository}
+func NewTextService(textRepository model.TextRepository, eventDispatcher appevent.EventDispatcher) *TextService {
+	return &TextService{textRepository: textRepository, eventDispatcher: eventDispatcher}
 }
 
-func (s *TextService) EvaluateText(data string) (uuid.UUID, error) {
+func (s *TextService) EvaluateText(data string) (string, error) {
 	hash := sha256.New()
 	hash.Write([]byte(data))
 	hashedStr := hex.EncodeToString(hash.Sum(nil))
-	id, err := s.textRepository.FindByHash(hashedStr)
+	text, err := s.textRepository.FindByHash(hashedStr)
 	if err != nil && !errors.Is(err, model.ErrTextNotFound) {
-		return uuid.MustParse(id), err
-	}
-	// DONE: хешировать данные, чтобы хранить тексты в ед. экземпляре.
-	if errors.Is(err, model.ErrTextNotFound) {
-		text := model.NewText(hashedStr)
-		return text.GetID(), s.textRepository.Store(text)
+		return "", err
 	}
 
-	text, err := s.textRepository.FindByID(uuid.MustParse(id))
-	if err != nil && !errors.Is(err, model.ErrTextNotFound) {
-		return uuid.MustParse(id), err
+	text = model.NewText(hashedStr, data)
+	err = s.textRepository.Store(text)
+	if err != nil {
+		return "", err
 	}
-	text.SetSimilarity(true)
-	return text.GetID(), s.textRepository.Store(text)
+	err = s.eventDispatcher.Dispatch(appevent.TextAddedEvent{TextHash: hashedStr})
+	if err != nil {
+		return "", err
+	}
+	return text.GetHash(), nil
 }

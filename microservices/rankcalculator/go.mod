@@ -1,4 +1,4 @@
-module valuator
+module rankcalculator
 
 go 1.23
 

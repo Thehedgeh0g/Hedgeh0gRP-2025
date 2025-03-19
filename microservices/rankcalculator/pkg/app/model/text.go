@@ -1,14 +1,5 @@
 package model
 
-import (
-	"errors"
-	"regexp"
-)
-
-var (
-	ErrTextNotFound = errors.New("text not found")
-)
-
 type TextStats struct {
 	Rank       float64
 	Similarity bool
@@ -26,14 +17,6 @@ type Text struct {
 	rank       *float64
 }
 
-func NewText(hash, text string) Text {
-	return Text{
-		hash:       hash,
-		text:       text,
-		similarity: false,
-	}
-}
-
 func BuildTextFromSavedData(hash, text string, similarity bool, rank float64) Text {
 	return Text{
 		hash:       hash,
@@ -44,14 +27,7 @@ func BuildTextFromSavedData(hash, text string, similarity bool, rank float64) Te
 }
 
 func (t *Text) GetRank() float64 {
-	if t.rank != nil {
-		return *t.rank
-	}
-	re := regexp.MustCompile(`[A-Za-zА-Яа-я]`)
-	alphabetCount := float64(len(re.FindAllString(t.text, -1)))
-	totalCount := float64(len(t.text))
-
-	return 1 - (alphabetCount / totalCount)
+	return *t.rank
 }
 
 func (t *Text) GetHash() string {
@@ -68,4 +44,8 @@ func (t *Text) GetSimilarity() bool {
 
 func (t *Text) SetSimilarity(similarity bool) {
 	t.similarity = similarity
+}
+
+func (t *Text) SetRank(newRank float64) {
+	t.rank = &newRank
 }

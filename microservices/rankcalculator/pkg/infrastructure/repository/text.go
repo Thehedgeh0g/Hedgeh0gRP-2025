@@ -4,7 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/redis/go-redis/v9"
-	"valuator/pkg/app/model"
+
+	"rankcalculator/pkg/app/model"
 )
 
 type dbText struct {
