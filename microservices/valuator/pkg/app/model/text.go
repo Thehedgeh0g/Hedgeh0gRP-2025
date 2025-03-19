@@ -17,7 +17,7 @@ type TextStats struct {
 
 type TextRepository interface {
 	Store(text Text) error
-	FindByHash(data string) (string, error)
+	FindByHash(hash string) (string, error)
 	FindByID(id uuid.UUID) (Text, error)
 }
 

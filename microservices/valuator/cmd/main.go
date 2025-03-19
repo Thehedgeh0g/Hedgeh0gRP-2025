@@ -61,7 +61,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 		// Получаем текст из формы
 		data := r.FormValue("text")
 
-		textID, err := textService.ProcessText(data)
+		textID, err := textService.EvaluateText(data)
 		if err != nil {
 			http.Error(w, "Internal Server Error", 500)
 			log.Println(err.Error())

@@ -17,7 +17,7 @@ func NewTextService(textRepository model.TextRepository) *TextService {
 	return &TextService{textRepository: textRepository}
 }
 
-func (s *TextService) ProcessText(data string) (uuid.UUID, error) {
+func (s *TextService) EvaluateText(data string) (uuid.UUID, error) {
 	hash := sha256.New()
 	hash.Write([]byte(data))
 	hashedStr := hex.EncodeToString(hash.Sum(nil))
