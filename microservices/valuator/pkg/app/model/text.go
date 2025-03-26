@@ -2,7 +2,6 @@ package model
 
 import (
 	"errors"
-	"regexp"
 )
 
 var (
@@ -47,11 +46,7 @@ func (t *Text) GetRank() float64 {
 	if t.rank != nil {
 		return *t.rank
 	}
-	re := regexp.MustCompile(`[A-Za-zА-Яа-я]`)
-	alphabetCount := float64(len(re.FindAllString(t.text, -1)))
-	totalCount := float64(len(t.text))
-
-	return 1 - (alphabetCount / totalCount)
+	return 0
 }
 
 func (t *Text) GetHash() string {

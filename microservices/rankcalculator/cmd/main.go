@@ -20,20 +20,21 @@ func init() {
 		Addr: "redis:6379", // Адрес Redis
 	})
 	var err error
-	amqpConn, err = amqp.Dial("amqp://guest:guest@localhost:5672/")
+	amqpConn, err = amqp.Dial("amqp://guest:guest@rabbitmq:5672/")
 	if err != nil {
 		log.Fatal("Failed to connect to RabbitMQ:", err)
 	}
+}
+
+func main() {
+	var err error
+
 	defer func(amqpConn *amqp.Connection) {
 		err2 := amqpConn.Close()
 		if err2 != nil {
 			panic(err2)
 		}
 	}(amqpConn)
-}
-
-func main() {
-	var err error
 
 	amqpChannel, err = amqpConn.Channel()
 	if err != nil {
@@ -50,5 +51,7 @@ func main() {
 	textService := service.NewStatisticsService(textRepository)
 	eventHandler := event.NewHandler(textService)
 	amqpHandler := amqpClient.NewAMQPHandler(eventHandler, amqpChannel)
-	amqpHandler.Listen("texts")
+	var forever chan struct{}
+	amqpHandler.Listen("text")
+	<-forever
 }

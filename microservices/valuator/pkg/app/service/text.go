@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-
 	appevent "valuator/pkg/app/event"
 	"valuator/pkg/app/model"
 )
@@ -26,13 +25,13 @@ func (s *TextService) EvaluateText(data string) (string, error) {
 	if err != nil && !errors.Is(err, model.ErrTextNotFound) {
 		return "", err
 	}
-
 	text = model.NewText(hashedStr, data)
+	text.SetSimilarity(true)
 	err = s.textRepository.Store(text)
 	if err != nil {
 		return "", err
 	}
-	err = s.eventDispatcher.Dispatch(appevent.TextAddedEvent{TextHash: hashedStr})
+	err = s.eventDispatcher.Dispatch(appevent.NewTextAddedEvent(hashedStr))
 	if err != nil {
 		return "", err
 	}

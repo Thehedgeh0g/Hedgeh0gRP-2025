@@ -2,6 +2,7 @@ package aqmp
 
 import (
 	"encoding/json"
+	"fmt"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
 
@@ -21,6 +22,19 @@ func NewAMQPHandler(eventHandler appevent.Handler, connection *amqp.Channel) *AM
 }
 
 func (h *AMQPHandler) Listen(queueName string) {
+	_, err := h.amqpChannel.QueueDeclare(
+		queueName, // name
+		false,     // durable
+		false,     // delete
+		// when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+	if err != nil {
+		log.Fatalf("Failed to consume messages: %v", err)
+	}
+
 	msgs, err := h.amqpChannel.Consume(
 		queueName, "", true, false, false, false, nil,
 	)
@@ -30,16 +44,14 @@ func (h *AMQPHandler) Listen(queueName string) {
 
 	go func() {
 		for d := range msgs {
-			eventType := d.Type
 			eventData := d.Body
-
-			evt, err := h.createEvent(eventType, eventData)
+			evt, err := h.createEvent(eventData)
 			if err != nil {
 				log.Printf("Failed to create event: %v", err)
 				continue
 			}
 			if evt == nil {
-				log.Printf("Unknown event type: %s", eventType)
+				log.Printf("Unknown event type: %s", eventData)
 				continue
 			}
 

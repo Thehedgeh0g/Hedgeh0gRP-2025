@@ -31,20 +31,21 @@ func init() {
 		Addr: "redis:6379", // Адрес Redis
 	})
 	var err error
-	amqpConn, err = amqp.Dial("amqp://guest:guest@localhost:5672/")
+	amqpConn, err = amqp.Dial("amqp://guest:guest@rabbitmq:5672/")
 	if err != nil {
 		log.Fatal("Failed to connect to RabbitMQ:", err)
 	}
+}
+
+func main() {
+	var err error
+
 	defer func(amqpConn *amqp.Connection) {
 		err2 := amqpConn.Close()
 		if err2 != nil {
 			panic(err2)
 		}
 	}(amqpConn)
-}
-
-func main() {
-	var err error
 
 	amqpChannel, err = amqpConn.Channel()
 	if err != nil {
@@ -89,6 +90,8 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 		textService := service.NewTextService(textRepository, amqpDispatcher)
 		// Получаем текст из формы
 		data := r.FormValue("text")
+
+		fmt.Println(data)
 
 		hash, err := textService.EvaluateText(data)
 		if err != nil {

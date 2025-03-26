@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/redis/go-redis/v9"
 	"valuator/pkg/app/model"
 )
@@ -32,17 +34,21 @@ func (t *TextRepository) Store(text model.Text) error {
 		Text:       text.GetText(),
 		Similarity: text.GetSimilarity(),
 	}
-
-	formattedData, err := json.Marshal(textData)
-	if err != nil {
-		return err
-	}
+	fmt.Println(text.GetText())
+	formattedData, _ := json.Marshal(textData)
+	fmt.Println(string(formattedData))
 
 	return t.redisClient.Set(t.ctx, text.GetHash(), formattedData, 0).Err()
 }
 
 func (t *TextRepository) FindByHash(hash string) (model.Text, error) {
 	formattedData, err := t.redisClient.Get(t.ctx, hash).Result()
+	if errors.Is(err, redis.Nil) {
+		return model.Text{}, model.ErrTextNotFound
+	}
+	if err != nil {
+		return model.Text{}, err
+	}
 	textData := dbText{}
 	err = json.Unmarshal([]byte(formattedData), &textData)
 	if err != nil {

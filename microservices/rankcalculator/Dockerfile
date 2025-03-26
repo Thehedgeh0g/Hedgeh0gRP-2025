@@ -5,10 +5,10 @@ FROM golang:1.23-alpine AS builder
 WORKDIR /app
 
 # Копируем только файлы с зависимостями для кэширования
-COPY ../rankcalculator/go.mod go.sum ./
+COPY go.mod go.sum ./
 
 # Копируем исходный код
-COPY ../rankcalculator .
+COPY . .
 
 # Упрощаем и объединяем go мод команды
 RUN go mod tidy && \
@@ -28,7 +28,6 @@ WORKDIR /app
 # Копируем необходимые файлы из билд-образа
 COPY --from=builder /app/bin/main ./bin/main
 COPY --from=builder /app/vendor ./vendor
-COPY pages pages
 
 # Экспортируем порт
 EXPOSE 8082
