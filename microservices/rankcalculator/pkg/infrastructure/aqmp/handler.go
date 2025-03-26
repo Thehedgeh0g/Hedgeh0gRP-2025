@@ -2,12 +2,15 @@ package aqmp
 
 import (
 	"encoding/json"
-	"fmt"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
 
 	appevent "rankcalculator/pkg/app/event"
 )
+
+type BaseEvent struct {
+	Type string `json:"type"`
+}
 
 type AMQPHandler struct {
 	eventHandler appevent.Handler
@@ -62,8 +65,13 @@ func (h *AMQPHandler) Listen(queueName string) {
 	log.Printf("Listening for messages on queue: %s", queueName)
 }
 
-func (h *AMQPHandler) createEvent(eventType string, data []byte) (appevent.Event, error) {
-	switch eventType {
+func (h *AMQPHandler) createEvent(data []byte) (appevent.Event, error) {
+	event := BaseEvent{}
+	err := json.Unmarshal(data, &event)
+	if err != nil {
+		return nil, err
+	}
+	switch event.Type {
 	case "valuator.TextAdded":
 		var event appevent.TextAddedEvent
 		if err := json.Unmarshal(data, &event); err != nil {
