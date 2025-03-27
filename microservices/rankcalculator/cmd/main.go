@@ -50,8 +50,8 @@ func main() {
 	textRepository := repository.NewTextRepository(redisClient)
 	textService := service.NewStatisticsService(textRepository)
 	eventHandler := event.NewHandler(textService)
-	amqpHandler := amqpClient.NewAMQPHandler(eventHandler, amqpChannel)
+	amqpHandler := amqpClient.NewAMQPConsumer(eventHandler, amqpChannel)
 	var forever chan struct{}
-	amqpHandler.Listen("text")
+	amqpHandler.Consume("text")
 	<-forever
 }
