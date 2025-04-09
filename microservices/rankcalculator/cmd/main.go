@@ -52,8 +52,8 @@ func main() {
 	amqpDispatcher := amqpClient.NewAMQPDispatcher(amqpChannel, "text")
 	textService := service.NewStatisticsService(textRepository, amqpDispatcher)
 	eventHandler := handler.NewHandler(textService)
-	amqpHandler := amqpClient.NewAMQPHandler(eventHandler, amqpChannel)
+	amqpHandler := amqpClient.NewAMQPConsumer(eventHandler, amqpChannel)
 	var forever chan struct{}
-	amqpHandler.Listen("text")
+	amqpHandler.Consume("text")
 	<-forever
 }

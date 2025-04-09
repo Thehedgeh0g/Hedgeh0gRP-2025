@@ -13,19 +13,19 @@ type BaseEvent struct {
 	Type string `json:"type"`
 }
 
-type AMQPHandler struct {
+type AMQPConsumer struct {
 	eventHandler handler.Handler
 	amqpChannel  *amqp.Channel
 }
 
-func NewAMQPHandler(eventHandler handler.Handler, connection *amqp.Channel) *AMQPHandler {
-	return &AMQPHandler{
+func NewAMQPConsumer(eventHandler handler.Handler, connection *amqp.Channel) *AMQPConsumer {
+	return &AMQPConsumer{
 		eventHandler: eventHandler,
 		amqpChannel:  connection,
 	}
 }
 
-func (h *AMQPHandler) Listen(queueName string) {
+func (h *AMQPConsumer) Consume(queueName string) {
 	_, err := h.amqpChannel.QueueDeclare(
 		queueName, // name
 		true,      // durable
@@ -66,13 +66,13 @@ func (h *AMQPHandler) Listen(queueName string) {
 	log.Printf("Listening for messages on queue: %s", queueName)
 }
 
-func (h *AMQPHandler) createEvent(data []byte) (appevent.Event, error) {
-	event := BaseEvent{}
-	err := json.Unmarshal(data, &event)
+func (h *AMQPConsumer) createEvent(data []byte) (appevent.Event, error) {
+	baseEvent := BaseEvent{}
+	err := json.Unmarshal(data, &baseEvent)
 	if err != nil {
 		return nil, err
 	}
-	switch event.Type {
+	switch baseEvent.Type {
 	case "valuator.TextAdded":
 		var event appevent.TextAddedEvent
 		if err := json.Unmarshal(data, &event); err != nil {
