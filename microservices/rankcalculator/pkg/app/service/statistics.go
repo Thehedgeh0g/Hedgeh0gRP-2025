@@ -1,11 +1,12 @@
 package service
 
 import (
-	"rankcalculator/pkg/app/dispatcher"
-	appevent "rankcalculator/pkg/app/event"
 	"regexp"
 
+	"rankcalculator/pkg/app/dispatcher"
+	appevent "rankcalculator/pkg/app/event"
 	"rankcalculator/pkg/app/model"
+	"rankcalculator/pkg/infrastructure/centrifugo"
 )
 
 type StatisticsService interface {
@@ -15,16 +16,19 @@ type StatisticsService interface {
 func NewStatisticsService(
 	textRepo model.TextRepository,
 	eventDispatcher dispatcher.EventDispatcher,
+	centrifugoClient centrifugo.CentrifugoClient,
 ) StatisticsService {
 	return &statisticsService{
-		textRepo:        textRepo,
-		eventDispatcher: eventDispatcher,
+		textRepo:         textRepo,
+		eventDispatcher:  eventDispatcher,
+		centrifugoClient: centrifugoClient,
 	}
 }
 
 type statisticsService struct {
-	textRepo        model.TextRepository
-	eventDispatcher dispatcher.EventDispatcher
+	textRepo         model.TextRepository
+	eventDispatcher  dispatcher.EventDispatcher
+	centrifugoClient centrifugo.CentrifugoClient
 }
 
 func (service *statisticsService) CalculateRank(hash string) error {

@@ -9,6 +9,7 @@ import (
 	"rankcalculator/pkg/app/handler"
 	"rankcalculator/pkg/app/service"
 	amqpClient "rankcalculator/pkg/infrastructure/amqp"
+	"rankcalculator/pkg/infrastructure/centrifugo"
 	"rankcalculator/pkg/infrastructure/repository"
 )
 
@@ -48,9 +49,10 @@ func main() {
 		}
 	}(amqpChannel)
 
+	centrifugoClient := centrifugo.NewCentrifugoClient()
 	textRepository := repository.NewTextRepository(redisClient)
 	amqpDispatcher := amqpClient.NewAMQPDispatcher(amqpChannel, "text")
-	textService := service.NewStatisticsService(textRepository, amqpDispatcher)
+	textService := service.NewStatisticsService(textRepository, amqpDispatcher, centrifugoClient)
 	eventHandler := handler.NewHandler(textService)
 	amqpHandler := amqpClient.NewAMQPConsumer(eventHandler, amqpChannel)
 	var forever chan struct{}
