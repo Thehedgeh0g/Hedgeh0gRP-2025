@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"rankcalculator/pkg/app/dispatcher"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 
 	appevent "rankcalculator/pkg/app/event"
 )
 
-func NewAMQPDispatcher(amqpChannel *amqp.Channel, queueName string) appevent.EventDispatcher {
+func NewAMQPDispatcher(amqpChannel *amqp.Channel, queueName string) dispatcher.EventDispatcher {
 	return &amqpDispatcher{
 		amqpChannel: amqpChannel,
 		queueName:   queueName,
