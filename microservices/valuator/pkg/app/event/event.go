@@ -31,7 +31,7 @@ func NewSimilarityCalculatedEvent(hash string, similarity bool) Event {
 		Entity:     "Valuator",
 		Hash:       hash,
 		Similarity: similarity,
-		BaseEvent:  BaseEvent{},
+		BaseEvent:  BaseEvent{Type: "log.similarityCalculated"},
 	}
 }
 

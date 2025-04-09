@@ -2,7 +2,6 @@ package event
 
 import (
 	"errors"
-	"fmt"
 
 	"eventslogger/pkg/app/service"
 )
@@ -39,27 +38,25 @@ func (h *handler) Handle(event Event) {
 		h.handleError(err)
 		return
 	}
-	fmt.Printf("Событие: %s обработано успешно", event.GetType())
 }
 
 func (h *handler) handleRankCalculatedEvent(event RankCalculatedEvent) error {
-	logData := []any{
-		event.Entity,
-		event.Rank,
-		event.Hash,
+	logData := map[string]any{
+		"Entity": event.Entity,
+		"Rank":   event.Rank,
+		"Hash":   event.Hash,
 	}
 	return h.logger.Log("info", logData)
 }
 
 func (h *handler) handleSimilarityCalculatedEvent(event SimilarityCalculatedEvent) error {
-	logData := []any{
-		event.Entity,
-		event.Similarity,
-		event.Hash,
+	logData := map[string]any{
+		"Entity":     event.Entity,
+		"Similarity": event.Similarity,
+		"Hash":       event.Hash,
 	}
 	return h.logger.Log("info", logData)
 }
 
 func (h *handler) handleError(err error) {
-	fmt.Printf("не удалось обработать событие: %s", err.Error())
 }

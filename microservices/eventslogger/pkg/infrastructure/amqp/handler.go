@@ -25,15 +25,20 @@ func NewAMQPHandler(eventHandler appevent.Handler, connection *amqp.Channel) *AM
 }
 
 func (h *AMQPHandler) Listen(queueName string) {
-	_, err := h.amqpChannel.QueueDeclare(
+	err := h.amqpChannel.ExchangeDeclare("valuator", "fanout", true, false, false, false, nil)
+	if err != nil {
+		log.Fatalf("Failed to consume messages: %v", err)
+	}
+	_, err = h.amqpChannel.QueueDeclare(
 		queueName, // name
-		false,     // durable
+		true,      // durable
 		false,     // delete
 		// when unused
 		false, // exclusive
 		false, // no-wait
 		nil,   // arguments
 	)
+	err = h.amqpChannel.QueueBind(queueName, "", "valuator", false, nil)
 	if err != nil {
 		log.Fatalf("Failed to consume messages: %v", err)
 	}
@@ -51,10 +56,6 @@ func (h *AMQPHandler) Listen(queueName string) {
 			evt, err := h.createEvent(eventData)
 			if err != nil {
 				log.Printf("Failed to create event: %v", err)
-				continue
-			}
-			if evt == nil {
-				log.Printf("Unknown event type: %s", eventData)
 				continue
 			}
 

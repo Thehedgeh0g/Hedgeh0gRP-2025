@@ -46,6 +46,6 @@ func main() {
 	eventHandler := event.NewHandler(loggerService)
 	amqpHandler := amqpClient.NewAMQPHandler(eventHandler, amqpChannel)
 	var forever chan struct{}
-	amqpHandler.Listen("text")
+	amqpHandler.Listen("log")
 	<-forever
 }

@@ -37,7 +37,7 @@ func (service *statisticsService) CalculateRank(hash string) error {
 	alphabetCount := float64(len(re.FindAllString(textData, -1)))
 	totalCount := float64(len(textData))
 
-	rank := 1 - (alphabetCount / totalCount)
+	rank := alphabetCount / totalCount
 	text.SetRank(rank)
 	err = service.textRepo.Store(text)
 	if err != nil {

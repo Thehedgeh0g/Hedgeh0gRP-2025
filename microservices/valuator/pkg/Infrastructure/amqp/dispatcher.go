@@ -27,23 +27,27 @@ func (a *amqpDispatcher) Dispatch(event appevent.Event) error {
 	if err != nil {
 		return fmt.Errorf("could not marshal event: %w", err)
 	}
-
+	err = a.amqpChannel.ExchangeDeclare("valuator", "fanout", true, false, false, false, nil)
+	if err != nil {
+		return err
+	}
 	_, err = a.amqpChannel.QueueDeclare(
 		a.queueName, // name
-		false,       // durable
+		true,        // durable
 		false,       // delete
 		// when unused
 		false, // exclusive
 		false, // no-wait
 		nil,   // arguments
 	)
+
 	if err != nil {
 		log.Fatalf("Failed to consume messages: %v", err)
 		return err
 	}
 
 	err = a.amqpChannel.Publish(
-		"", a.queueName, false, false,
+		"valuator", a.queueName, false, false,
 		amqp.Publishing{ContentType: "application/json", Body: body},
 	)
 	if err != nil {

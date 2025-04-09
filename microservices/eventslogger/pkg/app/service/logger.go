@@ -1,5 +1,5 @@
 package service
 
 type LoggerService interface {
-	Log(level string, args ...[]any) error
+	Log(level string, args map[string]any) error
 }

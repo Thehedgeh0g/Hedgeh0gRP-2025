@@ -26,7 +26,11 @@ func NewAMQPConsumer(eventHandler handler.Handler, connection *amqp.Channel) *AM
 }
 
 func (h *AMQPConsumer) Consume(queueName string) {
-	_, err := h.amqpChannel.QueueDeclare(
+	err := h.amqpChannel.ExchangeDeclare("valuator", "fanout", true, false, false, false, nil)
+	if err != nil {
+		log.Fatalf("Failed to consume messages: %v", err)
+	}
+	_, err = h.amqpChannel.QueueDeclare(
 		queueName, // name
 		true,      // durable
 		false,     // delete
@@ -35,6 +39,7 @@ func (h *AMQPConsumer) Consume(queueName string) {
 		false, // no-wait
 		nil,   // arguments
 	)
+	err = h.amqpChannel.QueueBind(queueName, "", "valuator", false, nil)
 	if err != nil {
 		log.Fatalf("Failed to consume messages: %v", err)
 	}

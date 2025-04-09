@@ -29,26 +29,22 @@ func (a *amqpDispatcher) Dispatch(event appevent.Event) error {
 		return fmt.Errorf("could not marshal event: %w", err)
 	}
 
-	_, err = a.amqpChannel.QueueDeclare(
-		a.queueName, // name
-		false,       // durable
-		false,       // delete
-		// when unused
-		false, // exclusive
-		false, // no-wait
-		nil,   // arguments
-	)
+	// Объявляем fanout exchange
+	err = a.amqpChannel.ExchangeDeclare("valuator", "fanout", true, false, false, false, nil)
 	if err != nil {
-		log.Fatalf("Failed to consume messages: %v", err)
 		return err
 	}
 
+	// Публикуем В EXCHANGE, routing key игнорируется для fanout
 	err = a.amqpChannel.Publish(
-		"", a.queueName, false, false,
-		amqp.Publishing{ContentType: "application/json", Body: body},
+		"valuator", "", false, false, // <-- пустой routing key
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        body,
+		},
 	)
 	if err != nil {
-		log.Fatalf("Failed to publish messages: %v", err)
+		log.Fatalf("Failed to publish message: %v", err)
 		return err
 	}
 
