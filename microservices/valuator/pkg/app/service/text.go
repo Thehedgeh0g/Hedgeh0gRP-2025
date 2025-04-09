@@ -38,6 +38,7 @@ func (s *TextService) EvaluateText(data string) (string, error) {
 			return "", err
 		}
 		err = s.eventDispatcher.Dispatch(appevent.NewTextAddedEvent(hashedStr))
+		err = s.eventDispatcher.Dispatch(appevent.NewSimilarityCalculatedEvent(hashedStr, text.GetSimilarity()))
 	}
 	return text.GetHash(), nil
 }

@@ -1,9 +1,10 @@
-package event
+package handler
 
 import (
 	"errors"
 	"fmt"
 
+	appevent "rankcalculator/pkg/app/event"
 	"rankcalculator/pkg/app/service"
 )
 
@@ -12,7 +13,7 @@ var (
 )
 
 type Handler interface {
-	Handle(event Event)
+	Handle(event appevent.Event)
 }
 
 func NewHandler(statisticsService service.StatisticsService) Handler {
@@ -23,10 +24,10 @@ type handler struct {
 	statisticsService service.StatisticsService
 }
 
-func (h *handler) Handle(event Event) {
+func (h *handler) Handle(event appevent.Event) {
 	var err error
 	switch e := event.(type) {
-	case *TextAddedEvent:
+	case *appevent.TextAddedEvent:
 		err = h.handleTextAddedEvent(*e)
 	default:
 		err = ErrUnknownEventType
@@ -38,7 +39,7 @@ func (h *handler) Handle(event Event) {
 	fmt.Printf("Событие: %s обработано успешно", event.GetType())
 }
 
-func (h *handler) handleTextAddedEvent(event TextAddedEvent) error {
+func (h *handler) handleTextAddedEvent(event appevent.TextAddedEvent) error {
 	return h.statisticsService.CalculateRank(event.TextHash)
 }
 

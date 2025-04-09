@@ -1,11 +1,11 @@
-package aqmp
+package amqp
 
 import (
 	"encoding/json"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
 
-	appevent "rankcalculator/pkg/app/event"
+	appevent "eventslogger/pkg/app/event"
 )
 
 type BaseEvent struct {
@@ -72,8 +72,14 @@ func (h *AMQPHandler) createEvent(data []byte) (appevent.Event, error) {
 		return nil, err
 	}
 	switch event.Type {
-	case "valuator.TextAdded":
-		var event appevent.TextAddedEvent
+	case "log.similarityCalculated":
+		var event appevent.SimilarityCalculatedEvent
+		if err := json.Unmarshal(data, &event); err != nil {
+			return nil, err
+		}
+		return &event, nil
+	case "log.rankCalculated":
+		var event appevent.RankCalculatedEvent
 		if err := json.Unmarshal(data, &event); err != nil {
 			return nil, err
 		}

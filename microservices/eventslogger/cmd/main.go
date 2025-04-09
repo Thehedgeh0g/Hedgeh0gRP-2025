@@ -1,25 +1,19 @@
 package main
 
 import (
+	"eventslogger/pkg/infrastructure/cli"
 	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
-	"github.com/redis/go-redis/v9"
 
-	"rankcalculator/pkg/app/handler"
-	"rankcalculator/pkg/app/service"
-	amqpClient "rankcalculator/pkg/infrastructure/amqp"
-	"rankcalculator/pkg/infrastructure/repository"
+	"eventslogger/pkg/app/event"
+	amqpClient "eventslogger/pkg/infrastructure/amqp"
 )
 
-var redisClient *redis.Client
 var amqpConn *amqp.Connection
 var amqpChannel *amqp.Channel
 
 func init() {
-	redisClient = redis.NewClient(&redis.Options{
-		Addr: "redis:6379", // Адрес Redis
-	})
 	var err error
 	amqpConn, err = amqp.Dial("amqp://guest:guest@rabbitmq:5672/")
 	if err != nil {
@@ -48,10 +42,8 @@ func main() {
 		}
 	}(amqpChannel)
 
-	textRepository := repository.NewTextRepository(redisClient)
-	amqpDispatcher := amqpClient.NewAMQPDispatcher(amqpChannel, "text")
-	textService := service.NewStatisticsService(textRepository, amqpDispatcher)
-	eventHandler := handler.NewHandler(textService)
+	loggerService := cli.NewCliLoggerService()
+	eventHandler := event.NewHandler(loggerService)
 	amqpHandler := amqpClient.NewAMQPHandler(eventHandler, amqpChannel)
 	var forever chan struct{}
 	amqpHandler.Listen("text")

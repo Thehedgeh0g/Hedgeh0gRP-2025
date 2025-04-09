@@ -1,2 +1,4 @@
 /microservices/valuator/vendor/
 .idea
+/microservices/eventslogger/vendor/
+/microservices/rankcalculator/vendor/

@@ -1,6 +1,8 @@
 package service
 
 import (
+	"rankcalculator/pkg/app/dispatcher"
+	appevent "rankcalculator/pkg/app/event"
 	"regexp"
 
 	"rankcalculator/pkg/app/model"
@@ -10,14 +12,19 @@ type StatisticsService interface {
 	CalculateRank(hash string) error
 }
 
-func NewStatisticsService(textRepo model.TextRepository) StatisticsService {
+func NewStatisticsService(
+	textRepo model.TextRepository,
+	eventDispatcher dispatcher.EventDispatcher,
+) StatisticsService {
 	return &statisticsService{
-		textRepo: textRepo,
+		textRepo:        textRepo,
+		eventDispatcher: eventDispatcher,
 	}
 }
 
 type statisticsService struct {
-	textRepo model.TextRepository
+	textRepo        model.TextRepository
+	eventDispatcher dispatcher.EventDispatcher
 }
 
 func (service *statisticsService) CalculateRank(hash string) error {
@@ -32,5 +39,9 @@ func (service *statisticsService) CalculateRank(hash string) error {
 
 	rank := 1 - (alphabetCount / totalCount)
 	text.SetRank(rank)
-	return service.textRepo.Store(text)
+	err = service.textRepo.Store(text)
+	if err != nil {
+		return err
+	}
+	return service.eventDispatcher.Dispatch(appevent.NewRankCalculatedEvent(text.GetHash(), rank))
 }

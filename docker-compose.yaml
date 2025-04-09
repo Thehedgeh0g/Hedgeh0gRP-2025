@@ -73,6 +73,19 @@ services:
       rabbit:
         condition: service_healthy
 
+  eventslogger:
+    container_name: eventslogger
+    build:
+      context: ./microservices/eventslogger
+      dockerfile: Dockerfile
+    networks:
+      - app-network
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbit:
+        condition: service_healthy
+
   redis:
     image: redis:latest
     ports:

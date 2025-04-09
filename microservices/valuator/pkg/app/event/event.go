@@ -25,3 +25,23 @@ type TextAddedEvent struct {
 func (e TextAddedEvent) GetType() string {
 	return "valuator.TextAdded"
 }
+
+func NewSimilarityCalculatedEvent(hash string, similarity bool) Event {
+	return SimilarityCalculatedEvent{
+		Entity:     "Valuator",
+		Hash:       hash,
+		Similarity: similarity,
+		BaseEvent:  BaseEvent{},
+	}
+}
+
+type SimilarityCalculatedEvent struct {
+	Entity     string
+	Hash       string
+	Similarity bool
+	BaseEvent
+}
+
+func (e SimilarityCalculatedEvent) GetType() string {
+	return "log.similarityCalculated"
+}
