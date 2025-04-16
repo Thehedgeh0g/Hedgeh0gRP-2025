@@ -1,5 +1,11 @@
 package model
 
+import "errors"
+
+var (
+	ErrTextNotFound = errors.New("text not found")
+)
+
 type TextStats struct {
 	Rank       float64
 	Similarity bool

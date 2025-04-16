@@ -2,178 +2,159 @@ package main
 
 import (
 	"fmt"
+	"github.com/redis/go-redis/v9"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
-	amqpadapter "valuator/pkg/Infrastructure/amqp"
 
 	amqp "github.com/rabbitmq/amqp091-go"
-	"github.com/redis/go-redis/v9"
 
+	amqpadapter "valuator/pkg/Infrastructure/amqp"
 	"valuator/pkg/Infrastructure/repository"
 	"valuator/pkg/app/service"
 )
 
-var redisClient *redis.Client
-var amqpConn *amqp.Connection
-var amqpChannel *amqp.Channel
+type connectionContainer struct {
+	RedisMain     *redis.Client
+	RegionClients *map[string]*redis.Client
+	AMQPConn      *amqp.Connection
+	AMQPChannel   *amqp.Channel
+}
+
+func newConnectionContainer() *connectionContainer {
+	container := &connectionContainer{}
+
+	container.RedisMain = newRedisClient(getEnv("DB_MAIN", "redis-main:6379"))
+	container.RegionClients = &map[string]*redis.Client{
+		"RU":   newRedisClient(getEnv("DB_RU", "redis-ru:6379")),
+		"EU":   newRedisClient(getEnv("DB_EU", "redis-eu:6379")),
+		"ASIA": newRedisClient(getEnv("DB_ASIA", "redis-asia:6379")),
+	}
+
+	var err error
+	container.AMQPConn, err = amqp.Dial(getEnv("AMQP_URL", "amqp://guest:guest@rabbitmq:5672/"))
+	if err != nil {
+		log.Fatal("Failed to connect to RabbitMQ:", err)
+	}
+
+	container.AMQPChannel, err = container.AMQPConn.Channel()
+	if err != nil {
+		log.Fatal("Failed to open a AMQP channel:", err)
+	}
+
+	return container
+}
+
+func newRedisClient(addr string) *redis.Client {
+	return redis.NewClient(&redis.Options{Addr: addr})
+}
+
+func getEnv(key, fallback string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return fallback
+}
+
+func main() {
+	connections := newConnectionContainer()
+	defer connections.AMQPConn.Close()
+	defer connections.AMQPChannel.Close()
+
+	port := getEnv("PORT", "8082")
+	fmt.Println("Listening on port " + port)
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		homeHandler(w, r, connections)
+	})
+	http.HandleFunc("/summary", func(w http.ResponseWriter, r *http.Request) {
+		summaryHandler(w, r, connections)
+	})
+	http.HandleFunc("/about", aboutHandler)
+	http.HandleFunc("/health", healthCheck)
+
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func homeHandler(w http.ResponseWriter, r *http.Request, conn *connectionContainer) {
+	if r.Method == http.MethodPost {
+		_ = r.ParseForm()
+		region := r.FormValue("region")
+		text := r.FormValue("text")
+
+		amqpDispatcher := amqpadapter.NewAMQPDispatcher(conn.AMQPChannel, "text")
+		shardManager := repository.NewShardManager(conn.RedisMain, conn.RegionClients, region)
+		textRepo := repository.NewTextRepository(shardManager)
+		textService := service.NewTextService(textRepo, amqpDispatcher)
+
+		hash, err := textService.EvaluateText(text)
+		if err != nil {
+			http.Error(w, "Internal Server Error", 500)
+			log.Println(err)
+			return
+		}
+		http.Redirect(w, r, fmt.Sprintf("/summary?id=%s", hash), http.StatusPermanentRedirect)
+		return
+	}
+
+	tmpl, err := template.ParseFiles("pages/index.html")
+	if err != nil {
+		http.Error(w, "Template Error", 500)
+		log.Println(err)
+		return
+	}
+	_ = tmpl.Execute(w, nil)
+}
+
+func summaryHandler(w http.ResponseWriter, r *http.Request, conn *connectionContainer) {
+	hash := r.URL.Query().Get("id")
+
+	shardManager := repository.NewShardManager(conn.RedisMain, conn.RegionClients, "")
+	textRepo := repository.NewTextRepository(shardManager)
+	text, err := textRepo.FindByHash(hash)
+	if err != nil {
+		http.Error(w, "Not Found", 404)
+		log.Println(err)
+		return
+	}
+
+	tmpl, err := template.ParseFiles("pages/summary.html")
+	if err != nil {
+		http.Error(w, "Template Error", 500)
+		log.Println(err)
+		return
+	}
+
+	_ = tmpl.Execute(w, map[string]interface{}{
+		"Rank":       text.GetRank(),
+		"Similarity": boolToInt(text.GetSimilarity()),
+	})
+}
+
+func aboutHandler(w http.ResponseWriter, _ *http.Request) {
+	tmpl, err := template.ParseFiles("pages/about.html")
+	if err != nil {
+		http.Error(w, "Template Error", 500)
+		log.Println(err)
+		return
+	}
+	_ = tmpl.Execute(w, map[string]interface{}{
+		"Name":  "Ilya Lezhnin",
+		"Email": "Flipdoge87@gmail.com",
+	})
+}
+
+func healthCheck(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("OK"))
+}
 
 func boolToInt(b bool) int {
 	if b {
 		return 1
 	}
 	return 0
-}
-
-func init() {
-	redisClient = redis.NewClient(&redis.Options{
-		Addr: "redis:6379", // Адрес Redis
-	})
-	var err error
-	amqpConn, err = amqp.Dial("amqp://guest:guest@rabbitmq:5672/")
-	if err != nil {
-		log.Fatal("Failed to connect to RabbitMQ:", err)
-	}
-}
-
-func main() {
-	var err error
-
-	defer func(amqpConn *amqp.Connection) {
-		err2 := amqpConn.Close()
-		if err2 != nil {
-			panic(err2)
-		}
-	}(amqpConn)
-
-	amqpChannel, err = amqpConn.Channel()
-	if err != nil {
-		log.Fatal("Failed to open a amqpChannel:", err)
-	}
-	defer func(channel *amqp.Channel) {
-		err2 := channel.Close()
-		if err2 != nil {
-			panic(err2)
-		}
-	}(amqpChannel)
-
-	value := os.Getenv("PORT")
-	if value == "" {
-		value = "8082"
-	}
-	fmt.Println("Listening on port " + value)
-	http.HandleFunc("/", homeHandler)
-	http.HandleFunc("/summary", summaryHandler)
-	http.HandleFunc("/about", aboutHandler)
-	http.HandleFunc("/health", healthCheck)
-	http.HandleFunc("/api/text", textHandler)
-	err = http.ListenAndServe(":"+value, nil)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("Listening on port " + value)
-}
-
-func healthCheck(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	_, err := w.Write([]byte("OK"))
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-}
-
-func homeHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		amqpDispatcher := amqpadapter.NewAMQPDispatcher(amqpChannel, "text")
-		textRepository := repository.NewTextRepository(redisClient)
-		textService := service.NewTextService(textRepository, amqpDispatcher)
-		// Получаем текст из формы
-		data := r.FormValue("text")
-
-		fmt.Println(data)
-
-		hash, err := textService.EvaluateText(data)
-		if err != nil {
-			http.Error(w, "Internal Server Error", 500)
-			log.Println(err.Error())
-			return
-		}
-
-		// Отправляем на страницу summary с результатами
-		http.Redirect(w, r, fmt.Sprintf("/summary?id=%s", hash), http.StatusPermanentRedirect)
-		return
-	}
-
-	ts, err := template.ParseFiles("pages/index.html")
-	if err != nil {
-		http.Error(w, "Internal Server Error", 500)
-		log.Println(err.Error())
-		return
-	}
-
-	err = ts.Execute(w, nil)
-	if err != nil {
-		http.Error(w, "Server Error", 500)
-		log.Println(err.Error())
-		return
-	}
-}
-
-func summaryHandler(w http.ResponseWriter, r *http.Request) {
-	hash := r.URL.Query().Get("id")
-	textRepository := repository.NewTextRepository(redisClient)
-	text, err := textRepository.FindByHash(hash)
-	if err != nil {
-		http.Error(w, "Internal Server Error", 500)
-		log.Println(err.Error())
-		return
-	}
-
-	tmpl, _ := template.ParseFiles("pages/summary.html")
-	err = tmpl.Execute(w, map[string]interface{}{
-		"Rank":       text.GetRank(),
-		"Similarity": boolToInt(text.GetSimilarity()),
-	})
-	if err != nil {
-		http.Error(w, "Internal Server Error", 500)
-		log.Println(err.Error())
-		return
-	}
-}
-
-func aboutHandler(w http.ResponseWriter, _ *http.Request) {
-	tmpl, err := template.ParseFiles("pages/about.html")
-	if err != nil {
-		http.Error(w, "Internal Server Error", 500)
-		log.Println(err.Error())
-		return
-	}
-	err = tmpl.Execute(w, map[string]interface{}{
-		"Name":  "Ilya Lezhnin",
-		"Email": "Flipdoge87@gmail.com",
-	})
-	if err != nil {
-		http.Error(w, "Internal Server Error", 500)
-		log.Println(err.Error())
-		return
-	}
-}
-
-func textHandler(w http.ResponseWriter, r *http.Request) {
-	hash := r.URL.Query().Get("id")
-	textRepository := repository.NewTextRepository(redisClient)
-	text, err := textRepository.FindByHash(hash)
-	if err != nil {
-		http.Error(w, "Internal Server Error", 500)
-		log.Println(err.Error())
-		return
-	}
-
-	_, err = w.Write([]byte(text.GetText()))
-	if err != nil {
-		http.Error(w, "Internal Server Error", 500)
-		log.Println(err.Error())
-		return
-	}
 }

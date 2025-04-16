@@ -1,25 +1,25 @@
 version: '3.8'
 
 services:
-  centrifugo:
-    image: centrifugo/centrifugo:latest
-    container_name: centrifugo
-    restart: always
-    ports:
-      - "8000:8000"
-      - "3000:3000"
-    environment:
-      - CENTRIFUGO_ADMIN_PASSWORD=admin_password
-      - CENTRIFUGO_ADMIN_SECRET=admin_secret
-    networks:
-      - app-network
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-    volumes:
-      - ./centrifugo/config.json:/centrifugo/config.json
+  #  centrifugo:
+  #    image: centrifugo/centrifugo:latest
+  #    container_name: centrifugo
+  #    restart: always
+  #    ports:
+  #      - "8000:8000"
+  #      - "3000:3000"
+  #    environment:
+  #      - CENTRIFUGO_ADMIN_PASSWORD=admin_password
+  #      - CENTRIFUGO_ADMIN_SECRET=admin_secret
+  #    networks:
+  #      - app-network
+  #    healthcheck:
+  #      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+  #      interval: 10s
+  #      timeout: 5s
+  #      retries: 3
+  #    volumes:
+  #      - ./centrifugo/config.json:/centrifugo/config.json
 
   nginx:
     image: nginx:alpine
@@ -44,6 +44,10 @@ services:
       dockerfile: Dockerfile
     environment:
       PORT: 5001
+      DB_MAIN: redis-main:6379
+      DB_RU: redis-ru:6379
+      DB_EU: redis-eu:6379
+      DB_ASIA: redis-asia:6379
     networks:
       - app-network
     healthcheck:
@@ -53,7 +57,7 @@ services:
       retries: 5
       start_period: 10s
     depends_on:
-      redis:
+      redis-main:
         condition: service_healthy
       rabbit:
         condition: service_healthy
@@ -75,7 +79,7 @@ services:
       retries: 3
       start_period: 5s
     depends_on:
-      redis:
+      redis-main:
         condition: service_healthy
       rabbit:
         condition: service_healthy
@@ -88,7 +92,7 @@ services:
     networks:
       - app-network
     depends_on:
-      redis:
+      redis-main:
         condition: service_healthy
       rabbit:
         condition: service_healthy
@@ -101,15 +105,67 @@ services:
     networks:
       - app-network
     depends_on:
-      redis:
+      redis-main:
         condition: service_healthy
       rabbit:
         condition: service_healthy
 
-  redis:
+  redis-main:
     image: redis:latest
     ports:
       - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      redis-ru:
+        condition: service_healthy
+      redis-eu:
+        condition: service_healthy
+      redis-asia:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  redis-ru:
+    image: redis:latest
+    ports:
+      - "127.0.0.1:6378:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - app-network
+
+  redis-eu:
+    image: redis:latest
+    ports:
+      - "127.0.0.1:6377:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - app-network
+
+  redis-asia:
+    image: redis:latest
+    ports:
+      - "127.0.0.1:6376:6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
