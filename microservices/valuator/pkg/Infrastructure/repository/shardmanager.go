@@ -35,21 +35,21 @@ func (s *ShardManager) GetClientByHash(hash string) (*redis.Client, string, bool
 		if region == "" {
 			return nil, "", false, errors.New("region not found")
 		}
-		client, ok := (*s.dbClientsMap)[region] // Правильное использование
+		client, ok := (*s.dbClientsMap)[region]
 		if !ok {
 			return nil, "", false, errors.New("unknown region: " + region)
 		}
-		fmt.Println(fmt.Sprintf("1 LOOKUP: %s; %s", region, client.String()))
+		fmt.Println(fmt.Sprintf("LOOKUP: %s; %s", region, client.String()))
 		return client, region, true, nil
 	}
 	if err != nil {
 		return nil, "", false, err
 	}
-	client, ok := (*s.dbClientsMap)[region] // Правильное использование
+	client, ok := (*s.dbClientsMap)[region]
 	if !ok {
 		return nil, "", false, errors.New("unknown region: " + region)
 	}
-	fmt.Println(fmt.Sprintf("2 LOOKUP: %s; %s", region, client.String()))
+	fmt.Println(fmt.Sprintf("LOOKUP: %s; %s", region, client.String()))
 	return client, region, false, nil
 }
 

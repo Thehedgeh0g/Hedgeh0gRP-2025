@@ -35,7 +35,7 @@ func (s *ShardManager) GetClientByHash(hash string) (*redis.Client, string, bool
 		if region == "" {
 			return nil, "", false, errors.New("region not found")
 		}
-		client, ok := (*s.dbClientsMap)[region] // Правильное использование
+		client, ok := (*s.dbClientsMap)[region]
 		if !ok {
 			return nil, "", false, errors.New("unknown region: " + region)
 		}
@@ -45,7 +45,7 @@ func (s *ShardManager) GetClientByHash(hash string) (*redis.Client, string, bool
 	if err != nil {
 		return nil, "", false, err
 	}
-	client, ok := (*s.dbClientsMap)[region] // Правильное использование
+	client, ok := (*s.dbClientsMap)[region]
 	if !ok {
 		return nil, "", false, errors.New("unknown region: " + region)
 	}
