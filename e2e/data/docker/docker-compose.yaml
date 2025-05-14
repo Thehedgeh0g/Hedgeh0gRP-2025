@@ -1,0 +1,231 @@
+version: '3.8'
+
+services:
+  centrifugo-test:
+    image: centrifugo/centrifugo:latest
+    container_name: centrifugo-test
+    restart: always
+    ports:
+      - "8000:8000"
+      - "3000:3000"
+    environment:
+      - CENTRIFUGO_ADMIN_PASSWORD=admin_password
+      - CENTRIFUGO_ADMIN_SECRET=admin_secret
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - ./../../../centrifugo/config.json:/centrifugo/config.json
+
+  nginx-test:
+    image: nginx:alpine
+    container_name: nginx-test
+    restart: always
+    volumes:
+      - ./../nginx/conf/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks:
+      - app-network
+    depends_on:
+      valuator1-test:
+        condition: service_healthy
+
+  valuator1-test:
+    container_name: valuator1-test
+    build:
+      context: ./../../../microservices/valuator
+      dockerfile: Dockerfile
+    environment:
+      PORT: 5001
+      DB_MAIN: redis-main-test:6379
+      DB_RU: redis-ru-test:6379
+      DB_EU: redis-eu-test:6379
+      DB_ASIA: redis-asia-test:6379
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://127.0.0.1:5001/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      redis-main-test:
+        condition: service_healthy
+      rabbit-test:
+        condition: service_healthy
+
+  calculator-test:
+    container_name: calculator-test
+    build:
+      context: ./../../../microservices/rankcalculator
+      dockerfile: Dockerfile
+    environment:
+      DB_MAIN: redis-main-test:6379
+      DB_RU: redis-ru-test:6379
+      DB_EU: redis-eu-test:6379
+      DB_ASIA: redis-asia-test:6379
+    networks:
+      - app-network
+    depends_on:
+      redis-main-test:
+        condition: service_healthy
+      rabbit-test:
+        condition: service_healthy
+
+  eventslogger-test:
+    container_name: eventslogger-test
+    build:
+      context: ./../../../microservices/eventslogger
+      dockerfile: Dockerfile
+    networks:
+      - app-network
+    depends_on:
+      redis-main-test:
+        condition: service_healthy
+      rabbit-test:
+        condition: service_healthy
+
+  redis-main-test:
+    image: redis:latest
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      redis-ru-test:
+        condition: service_healthy
+      redis-eu-test:
+        condition: service_healthy
+      redis-asia-test:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  redis-ru-test:
+    image: redis:latest
+    ports:
+      - "127.0.0.1:6378:6379"
+    volumes:
+      - ./../redis/ru:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - app-network
+
+  redis-eu-test:
+    image: redis:latest
+    ports:
+      - "127.0.0.1:6377:6379"
+    volumes:
+      - ./../redis/eu:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - app-network
+
+  redis-asia-test:
+    image: redis:latest
+    ports:
+      - "127.0.0.1:6376:6379"
+    volumes:
+      - ./../redis/asia:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - app-network
+
+  rabbit-test:
+    image: rabbitmq:3.10.7-management
+    hostname: rabbitmq
+    restart: always
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    networks:
+      - app-network
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "15672:15672"
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Selemium Grid
+  selenium-hub:
+    restart: always
+    image: selenium/hub:4.1.0
+    container_name: selenium-hub
+    ports:
+      - "4442:4442"
+      - "4443:4443"
+      - "4444:4444"
+    depends_on:
+      - valuator1-test
+      - calculator-test
+
+  chrome:
+    restart: always
+    image: selenium/node-chrome:4.1.0
+    shm_size: 2gb
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+      - SE_VNC_NO_PASSWORD=1
+    ports:
+      - "7900:7900"
+    volumes:
+      - /dev/shm:/dev/shm
+    depends_on:
+      - selenium-hub
+
+  firefox:
+    restart: always
+    image: selenium/node-firefox:4.1.0
+    shm_size: 2gb
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+      - SE_VNC_NO_PASSWORD=1
+    ports:
+      - "7901:7900"
+    volumes:
+      - /dev/shm:/dev/shm
+    depends_on:
+      - selenium-hub
+
+networks:
+  app-network:
+
+volumes:
+  redis_data:
+  rabbitmq_data:

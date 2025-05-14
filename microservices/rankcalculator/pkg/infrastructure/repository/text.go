@@ -60,25 +60,25 @@ func (t *TextRepository) FindByHash(hash string) (model.Text, error) {
 	client, _, _, err := t.shardManager.GetClientByHash(hash)
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
-			return model.Text{}, model.ErrTextNotFound
+			return nil, model.ErrTextNotFound
 		}
-		return model.Text{}, err
+		return nil, err
 	}
 	if client == nil {
-		return model.Text{}, model.ErrTextNotFound
+		return nil, model.ErrTextNotFound
 	}
 
 	formattedData, err := client.Get(t.ctx, hash).Result()
 	if errors.Is(err, redis.Nil) {
-		return model.Text{}, model.ErrTextNotFound
+		return nil, model.ErrTextNotFound
 	}
 	if err != nil {
-		return model.Text{}, err
+		return nil, err
 	}
 
 	var textData dbText
 	if err := json.Unmarshal([]byte(formattedData), &textData); err != nil {
-		return model.Text{}, err
+		return nil, err
 	}
 
 	return model.BuildTextFromSavedData(hash, textData.Text, textData.Similarity, textData.Rank), nil

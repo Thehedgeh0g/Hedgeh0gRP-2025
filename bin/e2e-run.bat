@@ -1,0 +1,1 @@
+docker-compose --file e2e/data/docker/docker-compose.yaml up --build
