@@ -2,3 +2,7 @@
 .idea
 /microservices/eventslogger/vendor/
 /microservices/rankcalculator/vendor/
+/e2e/data/redis/asia/
+/e2e/data/redis/ru/
+/e2e/data/redis/eu/
+/e2e/data/redis/main/
