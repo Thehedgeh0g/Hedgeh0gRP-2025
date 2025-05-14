@@ -1,25 +1,25 @@
 version: '3.8'
 
 services:
-  #  centrifugo:
-  #    image: centrifugo/centrifugo:latest
-  #    container_name: centrifugo
-  #    restart: always
-  #    ports:
-  #      - "8000:8000"
-  #      - "3000:3000"
-  #    environment:
-  #      - CENTRIFUGO_ADMIN_PASSWORD=admin_password
-  #      - CENTRIFUGO_ADMIN_SECRET=admin_secret
-  #    networks:
-  #      - app-network
-  #    healthcheck:
-  #      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
-  #      interval: 10s
-  #      timeout: 5s
-  #      retries: 3
-  #    volumes:
-  #      - ./centrifugo/config.json:/centrifugo/config.json
+  centrifugo:
+    image: centrifugo/centrifugo:latest
+    container_name: centrifugo
+    restart: always
+    ports:
+      - "8000:8000"
+      - "3000:3000"
+    environment:
+      - CENTRIFUGO_ADMIN_PASSWORD=admin_password
+      - CENTRIFUGO_ADMIN_SECRET=admin_secret
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - ./centrifugo/config.json:/centrifugo/config.json
 
   nginx:
     image: nginx:alpine

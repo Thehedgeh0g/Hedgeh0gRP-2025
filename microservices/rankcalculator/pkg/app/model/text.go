@@ -16,42 +16,51 @@ type TextRepository interface {
 	FindByHash(hash string) (Text, error)
 }
 
-type Text struct {
+type Text interface {
+	GetRank() float64
+	GetHash() string
+	GetText() string
+	GetSimilarity() bool
+	SetSimilarity(similarity bool)
+	SetRank(newRank float64)
+}
+
+type text struct {
 	hash       string
 	text       string
 	similarity bool
 	rank       *float64
 }
 
-func BuildTextFromSavedData(hash, text string, similarity bool, rank float64) Text {
-	return Text{
+func BuildTextFromSavedData(hash, textData string, similarity bool, rank float64) Text {
+	return &text{
 		hash:       hash,
-		text:       text,
+		text:       textData,
 		similarity: similarity,
 		rank:       &rank,
 	}
 }
 
-func (t *Text) GetRank() float64 {
+func (t *text) GetRank() float64 {
 	return *t.rank
 }
 
-func (t *Text) GetHash() string {
+func (t *text) GetHash() string {
 	return t.hash
 }
 
-func (t *Text) GetText() string {
+func (t *text) GetText() string {
 	return t.text
 }
 
-func (t *Text) GetSimilarity() bool {
+func (t *text) GetSimilarity() bool {
 	return t.similarity
 }
 
-func (t *Text) SetSimilarity(similarity bool) {
+func (t *text) SetSimilarity(similarity bool) {
 	t.similarity = similarity
 }
 
-func (t *Text) SetRank(newRank float64) {
+func (t *text) SetRank(newRank float64) {
 	t.rank = &newRank
 }

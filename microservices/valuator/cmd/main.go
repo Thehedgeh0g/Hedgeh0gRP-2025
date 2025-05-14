@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/redis/go-redis/v9"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 
@@ -128,9 +130,17 @@ func summaryHandler(w http.ResponseWriter, r *http.Request, conn *connectionCont
 		return
 	}
 
+	ip := r.Header.Get("X-Forwarded-For")
+	if ip == "" {
+		ip = r.RemoteAddr
+	}
+
+	channel := "personal#" + text.GetHash()
 	_ = tmpl.Execute(w, map[string]interface{}{
-		"Rank":       text.GetRank(),
-		"Similarity": boolToInt(text.GetSimilarity()),
+		"Channel":         channel,
+		"Rank":            text.GetRank(),
+		"Similarity":      boolToInt(text.GetSimilarity()),
+		"CentrifugoToken": generateCentrifugoToken(ip, channel),
 	})
 }
 
@@ -157,4 +167,21 @@ func boolToInt(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+func generateCentrifugoToken(identifier string, channel string) string {
+	claims := jwt.MapClaims{
+		"sub":      identifier,
+		"exp":      time.Now().Add(24 * time.Hour).Unix(),
+		"channels": []string{channel},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signedToken, err := token.SignedString([]byte("my_secret"))
+	if err != nil {
+		log.Printf("Ошибка генерации токена: %v", err)
+		return ""
+	}
+
+	return signedToken
 }

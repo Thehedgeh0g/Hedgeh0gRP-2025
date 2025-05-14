@@ -1,12 +1,13 @@
 package service
 
 import (
-	"regexp"
-
+	"fmt"
 	"rankcalculator/pkg/app/dispatcher"
 	appevent "rankcalculator/pkg/app/event"
 	"rankcalculator/pkg/app/model"
 	"rankcalculator/pkg/infrastructure/centrifugo"
+	"regexp"
+	"unicode/utf8"
 )
 
 type StatisticsService interface {
@@ -39,11 +40,28 @@ func (service *statisticsService) CalculateRank(hash string) error {
 	textData := text.GetText()
 	re := regexp.MustCompile(`[A-Za-zА-Яа-я]`)
 	alphabetCount := float64(len(re.FindAllString(textData, -1)))
-	totalCount := float64(len(textData))
-
-	rank := alphabetCount / totalCount
+	fmt.Println(alphabetCount)
+	totalCount := float64(utf8.RuneCountInString(textData))
+	fmt.Println(totalCount)
+	rank := 0.0
+	if totalCount != 0 {
+		rank = alphabetCount / totalCount
+	}
 	text.SetRank(rank)
 	err = service.textRepo.Store(text)
+	if err != nil {
+		return err
+	}
+
+	channel := "personal#" + hash
+	err = service.centrifugoClient.Publish(
+		channel,
+		map[string]interface{}{
+			"hash":       hash,
+			"rank":       text.GetRank(),
+			"similarity": text.GetSimilarity(),
+		},
+	)
 	if err != nil {
 		return err
 	}

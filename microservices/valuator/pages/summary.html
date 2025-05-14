@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+    <script src="https://cdn.jsdelivr.net/npm/centrifuge@5.3.0/dist/centrifuge.min.js"></script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Результаты оценки</title>
@@ -61,5 +63,26 @@
     <p><span class="result-label">Оценка содержания:</span> <span class="result-value highlight">{{.Rank}}</span></p>
     <p><span class="result-label">Схожесть:</span> <span class="result-value highlight">{{.Similarity}}</span></p>
 </div>
+<script>
+    const token = "{{.CentrifugoToken}}";
+    const centrifuge = new Centrifuge("ws://localhost:8000/connection/websocket", {
+        token: token,
+        name: "js"
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const hash = urlParams.get('id');
+
+    const channel = "{{.Channel}}";
+    const sub = centrifuge.newSubscription(channel);
+
+    sub.on('publication', function (ctx) {
+        document.querySelector('.result-value.highlight').textContent = ctx.data.rank;
+        document.querySelectorAll('.result-value.highlight')[1].textContent = number(boolean(ctx.data.similarity));
+    });
+
+    sub.subscribe();
+    centrifuge.connect();
+</script>
 </body>
 </html>

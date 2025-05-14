@@ -7,14 +7,18 @@ import (
 	"net/http"
 )
 
-type CentrifugoClient struct {
+type CentrifugoClient interface {
+	Publish(channel string, data interface{}) error
+}
+
+type centrifugoClient struct {
 }
 
 func NewCentrifugoClient() CentrifugoClient {
-	return CentrifugoClient{}
+	return &centrifugoClient{}
 }
 
-func (cc *CentrifugoClient) Publish(channel string, data interface{}) error {
+func (cc *centrifugoClient) Publish(channel string, data interface{}) error {
 
 	url := "http://centrifugo:8000/api/publish"
 
@@ -36,6 +40,7 @@ func (cc *CentrifugoClient) Publish(channel string, data interface{}) error {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "apikey _salt")
+	fmt.Println(req)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)

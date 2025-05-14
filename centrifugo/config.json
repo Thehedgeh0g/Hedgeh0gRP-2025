@@ -13,16 +13,15 @@
   "admin": {
     "enabled": true
   },
-  "namespaces": [
-    {
-      "name": "results",
-      "history_size": 10,
-      "history_ttl": "300s",
-      "presence": true,
-      "join_leave": true,
-      "subscribe_to_publish": true,
-      "allow_subscribe": true,
-      "allow_publish": true
-    }
-  ]
+  "channel": {
+    "namespaces": [
+      {
+        "name": "personal",
+        "presence": true,
+        "allow_user_limited_channels": true,
+        "allow_subscribe_for_client": true,
+        "channel_regex": "^personal#[a-zA-Z0-9_-]+$"
+      }
+    ]
+  }
 }
