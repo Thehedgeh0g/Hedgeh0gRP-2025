@@ -48,10 +48,13 @@ services:
       DB_RU: redis-ru:6379
       DB_EU: redis-eu:6379
       DB_ASIA: redis-asia:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      AMQP_USER: ${AMQP_USER}
+      AMQP_PASS: ${AMQP_PASS}
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:5001/health"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:5001/api/health"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -69,11 +72,18 @@ services:
       dockerfile: Dockerfile
     environment:
       PORT: 5002
+      DB_MAIN: redis-main:6379
+      DB_RU: redis-ru:6379
+      DB_EU: redis-eu:6379
+      DB_ASIA: redis-asia:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      AMQP_USER: ${AMQP_USER}
+      AMQP_PASS: ${AMQP_PASS}
     networks:
       - app-network
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:5002/health"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:5002/api/health"]
       interval: 1s
       timeout: 2s
       retries: 3
@@ -91,6 +101,10 @@ services:
       dockerfile: Dockerfile
     networks:
       - app-network
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      AMQP_USER: ${AMQP_USER}
+      AMQP_PASS: ${AMQP_PASS}
     depends_on:
       redis-main:
         condition: service_healthy
@@ -102,6 +116,9 @@ services:
     build:
       context: ./microservices/eventslogger
       dockerfile: Dockerfile
+    environment:
+      AMQP_USER: ${AMQP_USER}
+      AMQP_PASS: ${AMQP_PASS}
     networks:
       - app-network
     depends_on:
@@ -116,7 +133,9 @@ services:
       - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
@@ -138,7 +157,9 @@ services:
       - "127.0.0.1:6378:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
@@ -153,7 +174,9 @@ services:
       - "127.0.0.1:6377:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
@@ -168,7 +191,9 @@ services:
       - "127.0.0.1:6376:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
@@ -182,8 +207,8 @@ services:
     hostname: rabbitmq
     restart: always
     environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
+      - RABBITMQ_DEFAULT_USER=${AMQP_USER}
+      - RABBITMQ_DEFAULT_PASS=${AMQP_PASS}
     networks:
       - app-network
     volumes:

@@ -163,12 +163,12 @@ services:
     hostname: rabbitmq
     restart: always
     environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
+      - AMQP_DEFAULT_USER=guest
+      - AMQP_DEFAULT_PASS=guest
     networks:
       - app-network
     volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+      - AMQP_data:/var/lib/rabbitmq
     ports:
       - "15672:15672"
     healthcheck:
@@ -228,4 +228,4 @@ networks:
 
 volumes:
   redis_data:
-  rabbitmq_data:
+  AMQP_data:

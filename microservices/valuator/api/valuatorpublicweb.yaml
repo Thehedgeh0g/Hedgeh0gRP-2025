@@ -1,0 +1,172 @@
+openapi: 3.0.3
+info:
+  title: Valuator API
+  description: API для анализа текста, регистрации и аутентификации пользователей
+  version: "1.1"
+security:
+  - bearerAuth:
+      - "Register:w"
+
+servers:
+  - url: http://localhost:8080/api/
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    AuthRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          example: mysecretpassword
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR...
+
+paths:
+  /api/register:
+    post:
+      operationId: Register
+      summary: Регистрация нового пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        "201":
+          description: Успешная регистрация
+        "400":
+          description: Ошибка валидации или пользователь уже существует
+        "500":
+          description: Внутренняя ошибка сервера
+
+  /api/login:
+    post:
+      operationId: Login
+      summary: Вход пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        "200":
+          description: Успешный вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        "401":
+          description: Неверные учетные данные
+
+  /api/send-text:
+    post:
+      operationId: SendText
+      summary: Отправка текста на оценку
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                region:
+                  type: string
+                  example: RU
+                text:
+                  type: string
+                  example: Пример текста
+              required:
+                - region
+                - text
+      responses:
+        "301":
+          description: Перенаправление на страницу summary
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: string
+        "401":
+          description: Требуется авторизация
+        "500":
+          description: Ошибка сервера
+
+  /api/summary-data:
+    get:
+      operationId: summary
+      summary: Получение результата оценки
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - channel
+                  - rank
+                  - similarity
+                  - centrifugoToken
+                properties:
+                  channel:
+                    type: string
+                  rank:
+                    type: number
+                  similarity:
+                    type: boolean
+                  centrifugoToken:
+                    type: string
+        "401":
+          description: Требуется авторизация
+        "404":
+          description: Не найдено
+        "500":
+          description: Внутренняя ошибка сервера
+
+  /api/about:
+    get:
+      operationId: about
+      summary: О проекте
+      responses:
+        "200":
+          description: Информация об авторе
+
+  /api/health:
+    get:
+      operationId: health
+      summary: Проверка статуса сервиса
+      responses:
+        "200":
+          description: OK

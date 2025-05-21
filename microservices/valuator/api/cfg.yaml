@@ -1,0 +1,10 @@
+package: api
+generate:
+  models: true
+  embedded-spec: true
+  client: true
+  chi-server: true
+  strict-server: true
+compatibility:
+  apply-chi-middleware-first-to-last: true
+output: valuatorpublicweb.gen.go

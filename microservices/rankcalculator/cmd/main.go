@@ -24,15 +24,29 @@ type connectionContainer struct {
 func newConnectionContainer() *connectionContainer {
 	container := &connectionContainer{}
 
-	container.RedisMain = newRedisClient(getEnv("DB_MAIN", "redis-main:6379"))
+	container.RedisMain = newRedisClient(
+		getEnv("DB_MAIN", "redis-main:6379"),
+		getEnv("REDIS_PASSWORD", "pass"),
+	)
 	container.RegionClients = &map[string]*redis.Client{
-		"RU":   newRedisClient(getEnv("DB_RU", "redis-ru:6379")),
-		"EU":   newRedisClient(getEnv("DB_EU", "redis-eu:6379")),
-		"ASIA": newRedisClient(getEnv("DB_ASIA", "redis-asia:6379")),
+		"RU": newRedisClient(
+			getEnv("DB_RU", "redis-ru:6379"),
+			getEnv("REDIS_PASSWORD", "pass"),
+		),
+		"EU": newRedisClient(
+			getEnv("DB_EU", "redis-eu:6379"),
+			getEnv("REDIS_PASSWORD", "pass"),
+		),
+		"ASIA": newRedisClient(
+			getEnv("DB_ASIA", "redis-asia:6379"),
+			getEnv("REDIS_PASSWORD", "pass"),
+		),
 	}
 
 	var err error
-	container.AMQPConn, err = amqp.Dial(getEnv("AMQP_URL", "amqp://guest:guest@rabbitmq:5672/"))
+	amqpUser := getEnv("AMQP_USER", "guest")
+	amqpPassword := getEnv("AMQP_PASS", "guest")
+	container.AMQPConn, err = amqp.Dial("amqp://" + amqpUser + ":" + amqpPassword + "@rabbitmq:5672/")
 	if err != nil {
 		log.Fatal("Failed to connect to RabbitMQ:", err)
 	}
@@ -45,8 +59,12 @@ func newConnectionContainer() *connectionContainer {
 	return container
 }
 
-func newRedisClient(addr string) *redis.Client {
-	return redis.NewClient(&redis.Options{Addr: addr})
+func newRedisClient(
+	addr, pass string) *redis.Client {
+	return redis.NewClient(&redis.Options{
+		Addr:     addr,
+		Password: pass,
+	})
 }
 
 func getEnv(key, fallback string) string {

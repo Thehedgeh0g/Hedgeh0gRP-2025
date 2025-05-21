@@ -1,94 +1,55 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Профиль пользователя</title>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f0f2f5;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-
-        .container {
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 500px;
-            text-align: center;
-        }
-
-        h1 {
-            font-size: 24px;
-            margin-bottom: 20px;
-            color: #333;
-        }
-
-        label {
-            display: block;
-            font-size: 16px;
-            margin-bottom: 10px;
-            color: #555;
-        }
-
-        textarea {
-            width: 100%;
-            height: 150px;
-            padding: 10px;
-            font-size: 16px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            resize: none;
-            box-sizing: border-box;
-        }
-
-        button {
-            margin-top: 20px;
-            padding: 12px 20px;
-            font-size: 16px;
-            color: #fff;
-            background-color: #4CAF50;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-
-        button:active {
-            background-color: #388e3c;
-        }
-    </style>
+    <title>Text Evaluation</title>
 </head>
 <body>
-<div class="container">
-    <h1>Оценка текста</h1>
-    <form method="post">
-        <label for="text">Введите текст для оценки:</label>
-        <textarea name="text" id="text" required></textarea>
+<h2>Send text for evaluation</h2>
+<form id="textForm">
+    <label>Region:</label>
+    <select id="region">
+        <option value="RU">RU</option>
+        <option value="EU">EU</option>
+        <option value="ASIA">ASIA</option>
+    </select><br>
+    <textarea id="text" placeholder="Enter text..." required></textarea><br>
+    <button type="submit">Evaluate</button>
+</form>
+<p id="error" style="color:red;"></p>
 
-        <label for="region">Выберите страну:</label>
-        <select id="region" name="region" required>
-            <option value="RU">Russia</option>
-            <option value="EU">France</option>
-            <option value="EU">Germany</option>
-            <option value="ASIA">UAE</option>
-            <option value="ASIA">India</option>
-        </select>
+<script>
+    document.getElementById("textForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const token = localStorage.getItem("token");
+        if (!token) {
+            alert("Please login first.");
+            window.location.href = "/login";
+            return;
+        }
 
-        <button type="submit">Оценить</button>
-    </form>
-</div>
+        const region = document.getElementById("region").value;
+        const text = document.getElementById("text").value;
+
+        const formData = new URLSearchParams();
+        formData.append("region", region);
+        formData.append("text", text);
+
+        const res = await fetch("/api/send-text", {
+            method: "POST",
+            headers: { Authorization: "Bearer " + token, "Content-Type": "application/x-www-form-urlencoded" },
+            body: formData
+        });
+
+        if (res.status === 301 || res.redirected) {
+            window.location.href = res.url;
+        } else if (res.ok) {
+            const data = await res.json();
+            alert("Response: " + data);
+        } else {
+            document.getElementById("error").innerText = "Evaluation failed.";
+        }
+    });
+</script>
 </body>
 </html>

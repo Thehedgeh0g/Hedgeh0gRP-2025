@@ -17,9 +17,9 @@ func NewTextService(textRepository model.TextRepository, eventDispatcher appeven
 	return &TextService{textRepository: textRepository, eventDispatcher: eventDispatcher}
 }
 
-func (s *TextService) EvaluateText(data string) (string, error) {
+func (s *TextService) EvaluateText(data, userToken string) (string, error) {
 	hash := sha256.New()
-	hash.Write([]byte(data))
+	hash.Write([]byte(data + userToken))
 	hashedStr := hex.EncodeToString(hash.Sum(nil))
 	text, err := s.textRepository.FindByHash(hashedStr)
 	if err != nil && !errors.Is(err, model.ErrTextNotFound) {

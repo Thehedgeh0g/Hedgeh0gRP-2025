@@ -1,88 +1,65 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
-    <script src="https://cdn.jsdelivr.net/npm/centrifuge@5.3.0/dist/centrifuge.min.js"></script>
-
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Результаты оценки</title>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f0f2f5;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            color: #333;
-        }
-
-        .container {
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 500px;
-            text-align: center;
-        }
-
-        h2 {
-            font-size: 26px;
-            margin-bottom: 20px;
-            color: #4CAF50;
-        }
-
-        p {
-            font-size: 18px;
-            margin: 10px 0;
-            color: #555;
-        }
-
-        .result-label {
-            font-weight: bold;
-            color: #333;
-        }
-
-        .result-value {
-            font-size: 20px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .highlight {
-            color: #4CAF50;
-        }
-    </style>
+    <title>Summary</title>
+    <script src="https://cdn.jsdelivr.net/npm/centrifuge@5.3.0/dist/centrifuge.min.js"></script>
 </head>
 <body>
-<div class="container">
-    <h2>Результаты оценки</h2>
-    <p><span class="result-label">Оценка содержания:</span> <span class="result-value highlight">{{.Rank}}</span></p>
-    <p><span class="result-label">Схожесть:</span> <span class="result-value highlight">{{.Similarity}}</span></p>
+<h2>Evaluation Summary</h2>
+<div id="result">
+    <p><strong>Channel:</strong> <span id="channel">loading...</span></p>
+    <p><strong>Rank:</strong> <span id="rank">-</span></p>
+    <p><strong>Similarity:</strong> <span id="similarity">-</span></p>
 </div>
+
 <script>
-    const token = "{{.CentrifugoToken}}";
-    const centrifuge = new Centrifuge("ws://localhost:8000/connection/websocket", {
-        token: token,
-        name: "js"
-    });
-
     const urlParams = new URLSearchParams(window.location.search);
-    const hash = urlParams.get('id');
+    const id = urlParams.get("id");
 
-    const channel = "{{.Channel}}";
-    const sub = centrifuge.newSubscription(channel);
+    const token = localStorage.getItem("token");
+    if (!token) {
+        alert("Please login first.");
+        window.location.href = "/login";
+    }
 
-    sub.on('publication', function (ctx) {
-        document.querySelector('.result-value.highlight').textContent = ctx.data.rank;
-        document.querySelectorAll('.result-value.highlight')[1].textContent = number(boolean(ctx.data.similarity));
-    });
+    // 1. Получаем начальные данные через API
+    fetch("/api/summary-data?id=" + id, {
+        headers: { Authorization: "Bearer " + token }
+    })
+        .then(res => res.json())
+        .then(data => {
+            const { channel, rank, similarity, centrifugoToken } = data;
 
-    sub.subscribe();
-    centrifuge.connect();
+            document.getElementById("channel").textContent = channel;
+            document.getElementById("rank").textContent = rank;
+            document.getElementById("similarity").textContent = similarity ? "Yes" : "No";
+
+            // 2. Подключаемся к Centrifugo
+            const centrifuge = new Centrifuge("ws://localhost:8000/connection/websocket", {
+                token: centrifugoToken,
+                name: "web-client"
+            });
+
+            const sub = centrifuge.newSubscription(channel);
+
+            sub.on("publication", function (ctx) {
+                const pub = ctx.data;
+                if (typeof pub.rank !== "undefined") {
+                    document.getElementById("rank").textContent = pub.rank;
+                }
+                if (typeof pub.similarity !== "undefined") {
+                    document.getElementById("similarity").textContent = pub.similarity ? "Yes" : "No";
+                }
+            });
+
+            sub.subscribe();
+            centrifuge.connect();
+        })
+        .catch(err => {
+            console.error("Error loading summary:", err);
+            document.getElementById("result").innerHTML = "Failed to load summary.";
+        });
 </script>
 </body>
 </html>

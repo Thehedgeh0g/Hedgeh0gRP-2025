@@ -2,40 +2,44 @@ package main
 
 import (
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
-	"github.com/redis/go-redis/v9"
-	"html/template"
 	"log"
 	"net/http"
 	"os"
-	"time"
 
+	"github.com/gorilla/mux"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/redis/go-redis/v9"
 
-	amqpadapter "valuator/pkg/Infrastructure/amqp"
-	"valuator/pkg/Infrastructure/repository"
-	"valuator/pkg/app/service"
+	publicapi "valuator/api"
+	"valuator/pkg/Infrastructure/transport"
 )
 
-type connectionContainer struct {
-	RedisMain     *redis.Client
-	RegionClients *map[string]*redis.Client
-	AMQPConn      *amqp.Connection
-	AMQPChannel   *amqp.Channel
-}
+func newConnectionContainer() *transport.ConnectionContainer {
+	container := &transport.ConnectionContainer{}
 
-func newConnectionContainer() *connectionContainer {
-	container := &connectionContainer{}
-
-	container.RedisMain = newRedisClient(getEnv("DB_MAIN", "redis-main:6379"))
+	container.RedisMain = newRedisClient(
+		getEnv("DB_MAIN", "redis-main:6379"),
+		getEnv("REDIS_PASSWORD", "pass"),
+	)
 	container.RegionClients = &map[string]*redis.Client{
-		"RU":   newRedisClient(getEnv("DB_RU", "redis-ru:6379")),
-		"EU":   newRedisClient(getEnv("DB_EU", "redis-eu:6379")),
-		"ASIA": newRedisClient(getEnv("DB_ASIA", "redis-asia:6379")),
+		"RU": newRedisClient(
+			getEnv("DB_RU", "redis-ru:6379"),
+			getEnv("REDIS_PASSWORD", "pass"),
+		),
+		"EU": newRedisClient(
+			getEnv("DB_EU", "redis-eu:6379"),
+			getEnv("REDIS_PASSWORD", "pass"),
+		),
+		"ASIA": newRedisClient(
+			getEnv("DB_ASIA", "redis-asia:6379"),
+			getEnv("REDIS_PASSWORD", "pass"),
+		),
 	}
 
 	var err error
-	container.AMQPConn, err = amqp.Dial(getEnv("AMQP_URL", "amqp://guest:guest@rabbitmq:5672/"))
+	amqpUser := getEnv("AMQP_USER", "guest")
+	amqpPassword := getEnv("AMQP_PASS", "guest")
+	container.AMQPConn, err = amqp.Dial("amqp://" + amqpUser + ":" + amqpPassword + "@rabbitmq:5672/")
 	if err != nil {
 		log.Fatal("Failed to connect to RabbitMQ:", err)
 	}
@@ -48,8 +52,12 @@ func newConnectionContainer() *connectionContainer {
 	return container
 }
 
-func newRedisClient(addr string) *redis.Client {
-	return redis.NewClient(&redis.Options{Addr: addr})
+func newRedisClient(
+	addr, pass string) *redis.Client {
+	return redis.NewClient(&redis.Options{
+		Addr:     addr,
+		Password: pass,
+	})
 }
 
 func getEnv(key, fallback string) string {
@@ -64,124 +72,38 @@ func main() {
 	defer connections.AMQPConn.Close()
 	defer connections.AMQPChannel.Close()
 
+	webAPI := transport.NewPublicWeb(connections, "secret")
+	handler := publicapi.NewStrictHandler(webAPI, []publicapi.StrictMiddlewareFunc{})
+
 	port := getEnv("PORT", "8082")
+	router := mux.NewRouter()
+	router.PathPrefix("/api/").Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("API request %s %s", r.Method, r.URL.Path)
+		publicapi.Handler(handler).ServeHTTP(w, r)
+	}))
+
+	staticDir := "./static"
+	router.PathPrefix("/static/").Handler(
+		http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))),
+	)
+
+	// 🌐 Отдача HTML-страниц
+	router.HandleFunc("/", serveHTML("index.html"))
+	router.HandleFunc("/login", serveHTML("login.html"))
+	router.HandleFunc("/register", serveHTML("register.html"))
+	router.HandleFunc("/about", serveHTML("about.html"))
+
+	server := http.Server{
+		Handler: router,
+		Addr:    ":" + port,
+	}
+
 	fmt.Println("Listening on port " + port)
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		homeHandler(w, r, connections)
-	})
-	http.HandleFunc("/summary", func(w http.ResponseWriter, r *http.Request) {
-		summaryHandler(w, r, connections)
-	})
-	http.HandleFunc("/about", aboutHandler)
-	http.HandleFunc("/health", healthCheck)
-
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal(err)
-	}
+	log.Fatal(server.ListenAndServe())
 }
 
-func homeHandler(w http.ResponseWriter, r *http.Request, conn *connectionContainer) {
-	if r.Method == http.MethodPost {
-		_ = r.ParseForm()
-		region := r.FormValue("region")
-		text := r.FormValue("text")
-
-		amqpDispatcher := amqpadapter.NewAMQPDispatcher(conn.AMQPChannel, "text")
-		shardManager := repository.NewShardManager(conn.RedisMain, conn.RegionClients, region)
-		textRepo := repository.NewTextRepository(shardManager)
-		textService := service.NewTextService(textRepo, amqpDispatcher)
-
-		hash, err := textService.EvaluateText(text)
-		if err != nil {
-			http.Error(w, "Internal Server Error", 500)
-			log.Println(err)
-			return
-		}
-		http.Redirect(w, r, fmt.Sprintf("/summary?id=%s", hash), http.StatusPermanentRedirect)
-		return
+func serveHTML(filename string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./pages/"+filename)
 	}
-
-	tmpl, err := template.ParseFiles("pages/index.html")
-	if err != nil {
-		http.Error(w, "Template Error", 500)
-		log.Println(err)
-		return
-	}
-	_ = tmpl.Execute(w, nil)
-}
-
-func summaryHandler(w http.ResponseWriter, r *http.Request, conn *connectionContainer) {
-	hash := r.URL.Query().Get("id")
-
-	shardManager := repository.NewShardManager(conn.RedisMain, conn.RegionClients, "")
-	textRepo := repository.NewTextRepository(shardManager)
-	text, err := textRepo.FindByHash(hash)
-	if err != nil {
-		http.Error(w, "Not Found", 404)
-		log.Println(err)
-		return
-	}
-
-	tmpl, err := template.ParseFiles("pages/summary.html")
-	if err != nil {
-		http.Error(w, "Template Error", 500)
-		log.Println(err)
-		return
-	}
-
-	ip := r.Header.Get("X-Forwarded-For")
-	if ip == "" {
-		ip = r.RemoteAddr
-	}
-
-	channel := "personal#" + text.GetHash()
-	_ = tmpl.Execute(w, map[string]interface{}{
-		"Channel":         channel,
-		"Rank":            text.GetRank(),
-		"Similarity":      boolToInt(text.GetSimilarity()),
-		"CentrifugoToken": generateCentrifugoToken(ip, channel),
-	})
-}
-
-func aboutHandler(w http.ResponseWriter, _ *http.Request) {
-	tmpl, err := template.ParseFiles("pages/about.html")
-	if err != nil {
-		http.Error(w, "Template Error", 500)
-		log.Println(err)
-		return
-	}
-	_ = tmpl.Execute(w, map[string]interface{}{
-		"Name":  "Ilya Lezhnin",
-		"Email": "Flipdoge87@gmail.com",
-	})
-}
-
-func healthCheck(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("OK"))
-}
-
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
-}
-
-func generateCentrifugoToken(identifier string, channel string) string {
-	claims := jwt.MapClaims{
-		"sub":      identifier,
-		"exp":      time.Now().Add(24 * time.Hour).Unix(),
-		"channels": []string{channel},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signedToken, err := token.SignedString([]byte("my_secret"))
-	if err != nil {
-		log.Printf("Ошибка генерации токена: %v", err)
-		return ""
-	}
-
-	return signedToken
 }

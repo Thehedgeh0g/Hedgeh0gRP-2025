@@ -3,6 +3,7 @@ package main
 import (
 	"eventslogger/pkg/infrastructure/cli"
 	"log"
+	"os"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 
@@ -15,10 +16,19 @@ var amqpChannel *amqp.Channel
 
 func init() {
 	var err error
-	amqpConn, err = amqp.Dial("amqp://guest:guest@rabbitmq:5672/")
+	amqpUser := getEnv("AMQP_USER", "guest")
+	amqpPassword := getEnv("AMQP_PASS", "guest")
+	amqpConn, err = amqp.Dial("amqp://" + amqpUser + ":" + amqpPassword + "@rabbitmq:5672/")
 	if err != nil {
 		log.Fatal("Failed to connect to RabbitMQ:", err)
 	}
+}
+
+func getEnv(key, fallback string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return fallback
 }
 
 func main() {

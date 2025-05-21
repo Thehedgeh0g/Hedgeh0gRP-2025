@@ -6,3 +6,5 @@
 /e2e/data/redis/ru/
 /e2e/data/redis/eu/
 /e2e/data/redis/main/
+.env
+/microservices/valuator/api/valuatorpublicweb.gen.go
