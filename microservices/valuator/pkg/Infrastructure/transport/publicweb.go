@@ -11,7 +11,7 @@ import (
 	"time"
 	publicapi "valuator/api"
 	amqpadapter "valuator/pkg/Infrastructure/amqp"
-	"valuator/pkg/Infrastructure/repository"
+	repository "valuator/pkg/Infrastructure/redis"
 	"valuator/pkg/app/service"
 )
 
@@ -64,18 +64,18 @@ func newConnectionContainer() *ConnectionContainer {
 	return container
 }
 
-func jwtTokenFromContext(ctx context.Context) *jwt.Token {
-	val := ctx.Value("bearerAuth.Scopes")
+func jwtTokenFromContext(ctx context.Context) *Claims {
+	val := ctx.Value("user")
 	if val == nil {
 		return nil
 	}
 	jsonData, _ := json.Marshal(val)
-	log.Println(string(jsonData))
-	token, ok := val.(*jwt.Token)
-	if !ok {
+	token := Claims{}
+	err := json.Unmarshal(jsonData, &token)
+	if err != nil {
 		return nil
 	}
-	return token
+	return &token
 }
 
 func newRedisClient(
@@ -189,7 +189,7 @@ func (p *publicWeb) SendText(ctx context.Context, request publicapi.SendTextRequ
 	textRepo := repository.NewTextRepository(shardManager)
 	textService := service.NewTextService(textRepo, amqpDispatcher)
 
-	hash, err := textService.EvaluateText(text, token.Raw)
+	hash, err := textService.EvaluateText(text, token.Email)
 	return publicapi.SendText200JSONResponse(hash), err
 }
 
@@ -209,7 +209,7 @@ func (p *publicWeb) Summary(ctx context.Context, request publicapi.SummaryReques
 	}
 	channel := "personal#" + text.GetHash()
 	return publicapi.Summary200JSONResponse{
-		CentrifugoToken: generateCentrifugoToken(token.Raw, channel),
+		CentrifugoToken: generateCentrifugoToken(token.Email, channel),
 		Channel:         channel,
 		Rank:            float32(text.GetRank()),
 		Similarity:      text.GetSimilarity(),

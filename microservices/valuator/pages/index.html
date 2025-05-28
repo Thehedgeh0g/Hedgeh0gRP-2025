@@ -45,7 +45,7 @@
             window.location.href = res.url;
         } else if (res.ok) {
             const data = await res.json();
-            alert("Response: " + data);
+            window.location.href = "./summary?id=" + data
         } else {
             document.getElementById("error").innerText = "Evaluation failed.";
         }

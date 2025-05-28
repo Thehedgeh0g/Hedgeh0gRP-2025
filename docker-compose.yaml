@@ -48,9 +48,9 @@ services:
       DB_RU: redis-ru:6379
       DB_EU: redis-eu:6379
       DB_ASIA: redis-asia:6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      AMQP_USER: ${AMQP_USER}
-      AMQP_PASS: ${AMQP_PASS}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-pass}
+      AMQP_USER: ${AMQP_USER:-guest}
+      AMQP_PASS: ${AMQP_PASS:-guest}
     networks:
       - app-network
     healthcheck:
@@ -76,9 +76,9 @@ services:
       DB_RU: redis-ru:6379
       DB_EU: redis-eu:6379
       DB_ASIA: redis-asia:6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      AMQP_USER: ${AMQP_USER}
-      AMQP_PASS: ${AMQP_PASS}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-pass}
+      AMQP_USER: ${AMQP_USER:-guest}
+      AMQP_PASS: ${AMQP_PASS:-guest}
     networks:
       - app-network
     restart: always
@@ -102,9 +102,9 @@ services:
     networks:
       - app-network
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      AMQP_USER: ${AMQP_USER}
-      AMQP_PASS: ${AMQP_PASS}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-pass}
+      AMQP_USER: ${AMQP_USER:-guest}
+      AMQP_PASS: ${AMQP_PASS:-guest}
     depends_on:
       redis-main:
         condition: service_healthy
@@ -117,8 +117,8 @@ services:
       context: ./microservices/eventslogger
       dockerfile: Dockerfile
     environment:
-      AMQP_USER: ${AMQP_USER}
-      AMQP_PASS: ${AMQP_PASS}
+      AMQP_USER: ${AMQP_USER:-guest}
+      AMQP_PASS: ${AMQP_PASS:-guest}
     networks:
       - app-network
     depends_on:
@@ -134,7 +134,7 @@ services:
     volumes:
       - redis_data:/data
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-pass}
     command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]

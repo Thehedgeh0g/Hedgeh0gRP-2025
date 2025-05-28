@@ -38,7 +38,7 @@ func (service *statisticsService) CalculateRank(hash string) error {
 		return err
 	}
 	textData := text.GetText()
-	re := regexp.MustCompile(`[A-Za-zА-Яа-я]`)
+	re := regexp.MustCompile(`[A-Za-zА-Яа-яЁё]`)
 	alphabetCount := float64(len(re.FindAllString(textData, -1)))
 	fmt.Println(alphabetCount)
 	totalCount := float64(utf8.RuneCountInString(textData))

@@ -1,11 +1,10 @@
-openapi: 3.0.3
+openapi: 3.0.0
 info:
   title: Valuator API
   description: API для анализа текста, регистрации и аутентификации пользователей
-  version: "1.1"
+  version: 2.0.0
 security:
-  - bearerAuth:
-      - "Register:w"
+  - bearerAuth: [ ]
 
 servers:
   - url: http://localhost:8080/api/

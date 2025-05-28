@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/redis/go-redis/v9"
@@ -77,18 +79,19 @@ func main() {
 
 	port := getEnv("PORT", "8082")
 	router := mux.NewRouter()
-	router.PathPrefix("/api/").Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	router.PathPrefix("/api/").Handler(jwtMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("API request %s %s", r.Method, r.URL.Path)
 		publicapi.Handler(handler).ServeHTTP(w, r)
-	}))
+	})))
 
 	staticDir := "./static"
 	router.PathPrefix("/static/").Handler(
 		http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))),
 	)
 
-	// 🌐 Отдача HTML-страниц
 	router.HandleFunc("/", serveHTML("index.html"))
+	router.HandleFunc("/summary", serveHTML("summary.html"))
 	router.HandleFunc("/login", serveHTML("login.html"))
 	router.HandleFunc("/register", serveHTML("register.html"))
 	router.HandleFunc("/about", serveHTML("about.html"))
@@ -106,4 +109,34 @@ func serveHTML(filename string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./pages/"+filename)
 	}
+}
+
+func jwtMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			next.ServeHTTP(w, r)
+		}
+
+		tokenString := ""
+		fmt.Sscanf(authHeader, "Bearer %s", &tokenString)
+		if tokenString == "" {
+			next.ServeHTTP(w, r)
+		}
+
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			}
+			return []byte("secret"), nil
+		})
+
+		if err != nil || !token.Valid {
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), "user", token.Claims)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }

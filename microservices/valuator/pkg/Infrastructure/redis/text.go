@@ -1,4 +1,4 @@
-package repository
+package redis
 
 import (
 	"context"
@@ -28,14 +28,13 @@ func NewTextRepository(shardManager *ShardManager) *TextRepository {
 }
 
 func (t *TextRepository) Store(text model.Text) error {
-	client, region, isNewRegion, err := t.shardManager.GetClientByHash(text.GetHash())
+	client, region, hasNoRegionEntry, err := t.shardManager.GetClientByHash(text.GetHash())
 	if err != nil {
 		return err
 	}
 	if client == nil {
 		return model.ErrTextNotFound
 	}
-	fmt.Println(client.String())
 
 	textData := dbText{
 		Rank:       text.GetRank(),
@@ -48,7 +47,7 @@ func (t *TextRepository) Store(text model.Text) error {
 		return err
 	}
 
-	if isNewRegion {
+	if hasNoRegionEntry {
 		return t.shardManager.SetRegionForHash(text.GetHash(), region)
 	}
 	return nil
