@@ -43,7 +43,7 @@ func (h *handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
-	req := loginBody{}
+	req := registerBody{}
 	err = json.Unmarshal(body, &req)
 
 	login := req.Email

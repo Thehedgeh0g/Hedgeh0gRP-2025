@@ -3,6 +3,8 @@ package main
 import (
 	"auth/pkg/app/service"
 	"auth/pkg/infrastucture/jwt"
+	"auth/pkg/infrastucture/protokey"
+	protokeyRepo "auth/pkg/infrastucture/protokey/repository"
 	"auth/pkg/infrastucture/redis/provider"
 	"auth/pkg/infrastucture/redis/repository"
 	"auth/pkg/infrastucture/transport"
@@ -15,7 +17,8 @@ import (
 )
 
 type connectionContainer struct {
-	RedisMain *redis.Client
+	RedisMain      *redis.Client
+	ProtoKeyClient *protokey.ProtoKeyClient
 }
 
 func newConnectionContainer() *connectionContainer {
@@ -25,6 +28,8 @@ func newConnectionContainer() *connectionContainer {
 		getEnv("DB_MAIN", "redis-main:6379"),
 		getEnv("REDIS_PASSWORD", "pass"),
 	)
+
+	container.ProtoKeyClient = protokey.NewProtoKeyClient("http://" + getEnv("DB_PROTOKEY", "protokey:6370"))
 
 	return container
 }
@@ -46,7 +51,7 @@ func getEnv(key, fallback string) string {
 
 func main() {
 	connections := newConnectionContainer()
-	userRepo := repository.NewUserRepository(connections.RedisMain)
+	userRepo := protokeyRepo.NewUserProtoKeyRepository(connections.ProtoKeyClient)
 	userService := service.NewUserService(userRepo)
 	tokenRepo := repository.NewTokenRepository(connections.RedisMain)
 	tokenProvider := provider.NewTokenProvider(connections.RedisMain)

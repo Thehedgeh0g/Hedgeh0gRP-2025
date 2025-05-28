@@ -46,6 +46,7 @@ services:
       PORT: 8080
       DB_MAIN: redis-main:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-pass}
+      DB_PROTOKEY: protokey:6370
     networks:
       - app-network
     depends_on:
@@ -145,6 +146,14 @@ services:
         condition: service_healthy
       rabbit:
         condition: service_healthy
+
+  protokey:
+    container_name: protokey
+    build:
+      context: ./microservices/protokey
+      dockerfile: Dockerfile
+    environment:
+      PORT: 6370
 
   redis-main:
     image: redis:latest
