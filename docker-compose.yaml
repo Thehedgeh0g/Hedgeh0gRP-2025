@@ -37,6 +37,21 @@ services:
       valuator2:
         condition: service_healthy
 
+  auth:
+    container_name: auth
+    build:
+      context: ./microservices/auth
+      dockerfile: Dockerfile
+    environment:
+      PORT: 8080
+      DB_MAIN: redis-main:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-pass}
+    networks:
+      - app-network
+    depends_on:
+      redis-main:
+        condition: service_healthy
+
   valuator1:
     container_name: valuator1
     build:
@@ -53,6 +68,8 @@ services:
       AMQP_PASS: ${AMQP_PASS:-guest}
     networks:
       - app-network
+    volumes:
+      - ./microservices/valuator/pages:/app/pages
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:5001/api/health"]
       interval: 15s
@@ -79,6 +96,8 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-pass}
       AMQP_USER: ${AMQP_USER:-guest}
       AMQP_PASS: ${AMQP_PASS:-guest}
+    volumes:
+      - ./microservices/valuator/pages:/app/pages
     networks:
       - app-network
     restart: always

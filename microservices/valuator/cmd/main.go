@@ -113,27 +113,57 @@ func serveHTML(filename string) http.HandlerFunc {
 
 func jwtMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			next.ServeHTTP(w, r)
+		// Получаем токен из куки
+		tokenCookie, err := r.Cookie("token")
+		if err != nil {
+			http.Error(w, "No token cookie found", http.StatusUnauthorized)
+			return
 		}
 
-		tokenString := ""
-		fmt.Sscanf(authHeader, "Bearer %s", &tokenString)
-		if tokenString == "" {
-			next.ServeHTTP(w, r)
-		}
+		tokenString := tokenCookie.Value
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
-			return []byte("secret"), nil
+			return []byte(getEnv("JWT_KEY", "secret")), nil
 		})
 
 		if err != nil || !token.Valid {
-			http.Error(w, "Invalid token", http.StatusUnauthorized)
-			return
+			updateReq, err := http.NewRequest("POST", "http://localhost:8080/auth/update-token", nil)
+			if err != nil {
+				http.Error(w, "Failed to create update request", http.StatusUnauthorized)
+				return
+			}
+
+			updateReq.AddCookie(tokenCookie)
+
+			client := &http.Client{}
+			resp, err := client.Do(updateReq)
+			if err != nil || resp.StatusCode != http.StatusOK {
+				http.Error(w, "Failed to refresh token", http.StatusUnauthorized)
+				return
+			}
+
+			for _, c := range resp.Cookies() {
+				if c.Name == "token" {
+					http.SetCookie(w, c)
+					tokenString = c.Value
+
+					token, err = jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+						if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+							return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+						}
+						return []byte(getEnv("JWT_KEY", "secret")), nil
+					})
+					break
+				}
+			}
+
+			if err != nil || !token.Valid {
+				http.Error(w, "Token refresh failed", http.StatusUnauthorized)
+				return
+			}
 		}
 
 		ctx := context.WithValue(r.Context(), "user", token.Claims)

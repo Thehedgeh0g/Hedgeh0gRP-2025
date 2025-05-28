@@ -94,7 +94,7 @@ func getEnv(key, fallback string) string {
 }
 
 type Claims struct {
-	Email string `json:"email"`
+	Login string `json:"login"`
 	jwt.StandardClaims
 }
 
@@ -118,64 +118,6 @@ func (p *publicWeb) Health(ctx context.Context, request publicapi.HealthRequestO
 	return publicapi.Health200Response{}, nil
 }
 
-func (p *publicWeb) Login(ctx context.Context, request publicapi.LoginRequestObject) (publicapi.LoginResponseObject, error) {
-	email := string(request.Body.Email)
-	password := request.Body.Password
-
-	key := "user:" + email
-
-	data, err := p.connectionContainer.RedisMain.HGetAll(ctx, key).Result()
-	if err != nil || len(data) == 0 {
-		return publicapi.Login401Response{}, nil
-	}
-
-	if data["password"] != password {
-		return publicapi.Login401Response{}, nil
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
-		Email: email,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
-			IssuedAt:  time.Now().Unix(),
-		},
-	})
-
-	signed, err := token.SignedString(p.jwtSecret)
-	if err != nil {
-		return nil, err
-	}
-
-	return publicapi.Login200JSONResponse{
-		Token: &signed,
-	}, nil
-}
-
-func (p *publicWeb) Register(ctx context.Context, request publicapi.RegisterRequestObject) (publicapi.RegisterResponseObject, error) {
-	email := string(request.Body.Email)
-	password := request.Body.Password
-
-	key := "user:" + email
-
-	exists, err := p.connectionContainer.RedisMain.Exists(ctx, key).Result()
-	if err != nil {
-		return publicapi.Register500Response{}, err
-	}
-	if exists > 0 {
-		return publicapi.Register400Response{}, nil
-	}
-
-	err = p.connectionContainer.RedisMain.HSet(ctx, key, map[string]string{
-		"email":    email,
-		"password": password,
-	}).Err()
-	if err != nil {
-		return publicapi.Register500Response{}, err
-	}
-
-	return publicapi.Register201Response{}, nil
-}
-
 func (p *publicWeb) SendText(ctx context.Context, request publicapi.SendTextRequestObject) (publicapi.SendTextResponseObject, error) {
 	token := jwtTokenFromContext(ctx)
 	if token == nil {
@@ -189,7 +131,7 @@ func (p *publicWeb) SendText(ctx context.Context, request publicapi.SendTextRequ
 	textRepo := repository.NewTextRepository(shardManager)
 	textService := service.NewTextService(textRepo, amqpDispatcher)
 
-	hash, err := textService.EvaluateText(text, token.Email)
+	hash, err := textService.EvaluateText(text, token.Login)
 	return publicapi.SendText200JSONResponse(hash), err
 }
 
@@ -209,7 +151,7 @@ func (p *publicWeb) Summary(ctx context.Context, request publicapi.SummaryReques
 	}
 	channel := "personal#" + text.GetHash()
 	return publicapi.Summary200JSONResponse{
-		CentrifugoToken: generateCentrifugoToken(token.Email, channel),
+		CentrifugoToken: generateCentrifugoToken(token.Login, channel),
 		Channel:         channel,
 		Rank:            float32(text.GetRank()),
 		Similarity:      text.GetSimilarity(),

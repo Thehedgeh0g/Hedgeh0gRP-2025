@@ -40,44 +40,6 @@ components:
           example: eyJhbGciOiJIUzI1NiIsInR...
 
 paths:
-  /api/register:
-    post:
-      operationId: Register
-      summary: Регистрация нового пользователя
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AuthRequest'
-      responses:
-        "201":
-          description: Успешная регистрация
-        "400":
-          description: Ошибка валидации или пользователь уже существует
-        "500":
-          description: Внутренняя ошибка сервера
-
-  /api/login:
-    post:
-      operationId: Login
-      summary: Вход пользователя
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AuthRequest'
-      responses:
-        "200":
-          description: Успешный вход
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
-        "401":
-          description: Неверные учетные данные
-
   /api/send-text:
     post:
       operationId: SendText

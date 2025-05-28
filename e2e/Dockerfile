@@ -7,13 +7,12 @@ WORKDIR /app
 # Копируем только файлы с зависимостями для кэширования
 COPY go.mod go.sum ./
 
-# Упрощаем и объединяем go мод команды
-RUN go mod tidy
-
 # Копируем исходный код
 COPY . .
 
-RUN go mod vendor
+# Упрощаем и объединяем go мод команды
+RUN go mod tidy && \
+    go mod vendor
 
 # Компиляция приложения
 RUN go build -o ./bin/main ./cmd/main.go
