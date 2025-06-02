@@ -29,11 +29,10 @@ var (
 )
 
 type command struct {
-	Type   CommandType `json:"type"`
-	Key    string      `json:"key,omitempty"`
-	Value  string      `json:"value,omitempty"`
-	Prefix string      `json:"prefix,omitempty"`
-	// Каналы не сериализуем
+	Type   CommandType      `json:"type"`
+	Key    string           `json:"key,omitempty"`
+	Value  string           `json:"value,omitempty"`
+	Prefix string           `json:"prefix,omitempty"`
 	RespCh chan interface{} `json:"-"`
 	ErrCh  chan error       `json:"-"`
 }
@@ -46,7 +45,6 @@ type Storage struct {
 	flushTimer *time.Ticker
 }
 
-// Новая функция создания Storage с загрузкой данных и открытием файла
 func NewStorage() *Storage {
 	s := &Storage{
 		storeCh:    make(chan command),
@@ -54,25 +52,21 @@ func NewStorage() *Storage {
 		flushTimer: time.NewTicker(1 * time.Second),
 	}
 
-	// Открываем или создаём файл для записи команд (append)
 	f, err := os.OpenFile("ProtoKey.data", os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
 	if err != nil {
 		panic(err)
 	}
 	s.file = f
 
-	// Загружаем сохранённые команды из файла
 	if err := s.loadFromFile(); err != nil {
 		panic(err)
 	}
 
-	go s.worker()
 	go s.flushWorker()
 	return s
 }
 
 func (s *Storage) loadFromFile() error {
-	// Открываем файл для чтения
 	f, err := os.Open("ProtoKey.data")
 	if err != nil {
 		return err
@@ -85,7 +79,6 @@ func (s *Storage) loadFromFile() error {
 		line := scanner.Text()
 		var cmd command
 		if err := json.Unmarshal([]byte(line), &cmd); err != nil {
-			// Пропускаем ошибочные строки
 			continue
 		}
 		switch cmd.Type {
@@ -94,7 +87,6 @@ func (s *Storage) loadFromFile() error {
 		}
 	}
 
-	// Запускаем внутренний worker с уже восстановленным состоянием
 	go func() {
 		for cmd := range s.storeCh {
 			switch cmd.Type {
@@ -130,17 +122,12 @@ func (s *Storage) loadFromFile() error {
 	return scanner.Err()
 }
 
-func (s *Storage) worker() {
-	// Пусто
-}
-
 func (s *Storage) flushWorker() {
 	for range s.flushTimer.C {
 		s.mu.Lock()
 		if len(s.pending) > 0 {
 			var lines []string
 			for _, cmd := range s.pending {
-				// Сериализуем только Set-команды
 				if cmd.Type == Set {
 					b, err := json.Marshal(cmd)
 					if err == nil {
@@ -176,7 +163,6 @@ func (s *Storage) Set(key string, value string) error {
 		ErrCh:  errCh,
 	}
 
-	// Добавляем команду в очередь для записи в файл
 	s.mu.Lock()
 	s.pending = append(s.pending, cmd)
 	s.mu.Unlock()
