@@ -13,11 +13,6 @@ services:
       - CENTRIFUGO_ADMIN_SECRET=admin_secret
     networks:
       - app-network
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
-      interval: 10s
-      timeout: 5s
-      retries: 3
     volumes:
       - ./centrifugo/config.json:/centrifugo/config.json
 
@@ -31,11 +26,6 @@ services:
       - "127.0.0.1:8080:8080"
     networks:
       - app-network
-    depends_on:
-      valuator1:
-        condition: service_healthy
-      valuator2:
-        condition: service_healthy
 
   auth:
     container_name: auth
@@ -71,12 +61,6 @@ services:
       - app-network
     volumes:
       - ./microservices/valuator/pages:/app/pages
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:5001/api/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     depends_on:
       redis-main:
         condition: service_healthy
@@ -101,13 +85,6 @@ services:
       - ./microservices/valuator/pages:/app/pages
     networks:
       - app-network
-    restart: always
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:5002/api/health"]
-      interval: 1s
-      timeout: 2s
-      retries: 3
-      start_period: 5s
     depends_on:
       redis-main:
         condition: service_healthy
@@ -154,6 +131,10 @@ services:
       dockerfile: Dockerfile
     environment:
       PORT: 6370
+    ports:
+      - "127.0.0.1:6370:6370"
+    networks:
+      - app-network
 
   redis-main:
     image: redis:latest

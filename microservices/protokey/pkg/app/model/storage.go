@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	ValidKey = regexp.MustCompile(`^[a-zA-Z0-9_.\-]{1,1000}$`)
+	ValidKey = regexp.MustCompile(`^[a-zA-Z0-9_.\-@]{1,1000}$`)
 )
 
 type CommandType int

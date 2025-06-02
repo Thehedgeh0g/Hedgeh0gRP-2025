@@ -2,6 +2,8 @@ package transport
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"protokey/pkg/app/model"
 )
@@ -30,9 +32,8 @@ func (h *handler) Set(w http.ResponseWriter, r *http.Request) {
 		Key   string `json:"key"`
 		Value string `json:"value"`
 	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil ||
-		!model.ValidKey.MatchString(req.Key) {
+	fmt.Println(r.Body)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
@@ -52,6 +53,10 @@ func (h *handler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	val, err := h.storage.Get(key)
 	if err != nil {
+		if errors.Is(err, model.ErrKeyNotFound) {
+			http.Error(w, "Key not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "Internal Error", http.StatusInternalServerError)
 		return
 	}
@@ -64,10 +69,10 @@ func (h *handler) Get(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) Keys(w http.ResponseWriter, r *http.Request) {
 	prefix := r.URL.Query().Get("prefix")
-	if !model.ValidKey.MatchString(prefix) {
-		http.Error(w, "Invalid prefix", http.StatusBadRequest)
-		return
-	}
+	//if !model.ValidKey.MatchString(prefix) {
+	//	http.Error(w, "Invalid prefix", http.StatusBadRequest)
+	//	return
+	//}
 
 	keys, err := h.storage.Keys(prefix)
 	if err != nil {

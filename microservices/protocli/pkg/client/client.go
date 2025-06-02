@@ -1,4 +1,4 @@
-package protokey
+package client
 
 import (
 	"bytes"

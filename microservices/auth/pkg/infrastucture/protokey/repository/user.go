@@ -6,15 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/redis/go-redis/v9"
-
 	"auth/pkg/app/model"
 )
 
 func NewUserProtoKeyRepository(pkdb *protokey.ProtoKeyClient) model.UserRepository {
 	return &userRepository{
-		redisClient: pkdb,
-		ctx:         context.Background(),
+		protoKeyClient: pkdb,
+		ctx:            context.Background(),
 	}
 }
 
@@ -24,14 +22,14 @@ type userSerializable struct {
 }
 
 type userRepository struct {
-	redisClient *protokey.ProtoKeyClient
-	ctx         context.Context
+	protoKeyClient *protokey.ProtoKeyClient
+	ctx            context.Context
 }
 
 func (r *userRepository) FindByLogin(login string) (*model.User, error) {
-	formattedData, err := r.redisClient.Get(login)
+	formattedData, err := r.protoKeyClient.Get(login)
 	if err != nil {
-		if errors.Is(err, redis.Nil) {
+		if errors.Is(err, protokey.ErrKeyNotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -54,5 +52,5 @@ func (r *userRepository) Store(user model.User) error {
 	if err != nil {
 		return err
 	}
-	return r.redisClient.Set(user.Login(), string(formattedData))
+	return r.protoKeyClient.Set(user.Login(), string(formattedData))
 }
