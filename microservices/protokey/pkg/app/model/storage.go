@@ -1,9 +1,14 @@
 package model
 
 import (
+	"bufio"
+	"encoding/json"
 	"errors"
+	"os"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 )
 
 var (
@@ -24,59 +29,134 @@ var (
 )
 
 type command struct {
-	Type   CommandType
-	Key    string
-	Value  string
-	Prefix string
-	RespCh chan interface{}
-	ErrCh  chan error
+	Type   CommandType `json:"type"`
+	Key    string      `json:"key,omitempty"`
+	Value  string      `json:"value,omitempty"`
+	Prefix string      `json:"prefix,omitempty"`
+	// Каналы не сериализуем
+	RespCh chan interface{} `json:"-"`
+	ErrCh  chan error       `json:"-"`
 }
 
 type Storage struct {
-	storeCh chan command
+	storeCh    chan command
+	file       *os.File
+	mu         sync.Mutex
+	pending    []command
+	flushTimer *time.Ticker
 }
 
+// Новая функция создания Storage с загрузкой данных и открытием файла
 func NewStorage() *Storage {
 	s := &Storage{
-		storeCh: make(chan command),
+		storeCh:    make(chan command),
+		pending:    make([]command, 0, 100),
+		flushTimer: time.NewTicker(1 * time.Second),
 	}
+
+	// Открываем или создаём файл для записи команд (append)
+	f, err := os.OpenFile("ProtoKey.data", os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
+	if err != nil {
+		panic(err)
+	}
+	s.file = f
+
+	// Загружаем сохранённые команды из файла
+	if err := s.loadFromFile(); err != nil {
+		panic(err)
+	}
+
 	go s.worker()
+	go s.flushWorker()
 	return s
 }
 
-func (s *Storage) worker() {
+func (s *Storage) loadFromFile() error {
+	// Открываем файл для чтения
+	f, err := os.Open("ProtoKey.data")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
 	store := make(map[string]string)
-	for cmd := range s.storeCh {
+	for scanner.Scan() {
+		line := scanner.Text()
+		var cmd command
+		if err := json.Unmarshal([]byte(line), &cmd); err != nil {
+			// Пропускаем ошибочные строки
+			continue
+		}
 		switch cmd.Type {
 		case Set:
 			store[cmd.Key] = cmd.Value
-			cmd.ErrCh <- nil
-			cmd.RespCh <- struct{}{}
+		}
+	}
 
-		case Get:
-			val, ok := store[cmd.Key]
-			if !ok {
-				cmd.ErrCh <- ErrKeyNotFound
-				cmd.RespCh <- ""
-			} else {
+	// Запускаем внутренний worker с уже восстановленным состоянием
+	go func() {
+		for cmd := range s.storeCh {
+			switch cmd.Type {
+			case Set:
+				store[cmd.Key] = cmd.Value
 				cmd.ErrCh <- nil
-				cmd.RespCh <- val
+				cmd.RespCh <- struct{}{}
+			case Get:
+				val, ok := store[cmd.Key]
+				if !ok {
+					cmd.ErrCh <- ErrKeyNotFound
+					cmd.RespCh <- ""
+				} else {
+					cmd.ErrCh <- nil
+					cmd.RespCh <- val
+				}
+			case Keys:
+				var result []string
+				for k := range store {
+					if strings.HasPrefix(k, cmd.Prefix) {
+						result = append(result, k)
+					}
+				}
+				cmd.ErrCh <- nil
+				cmd.RespCh <- result
+			default:
+				cmd.ErrCh <- ErrUnknownCommand
+				closeChannels(cmd)
 			}
+		}
+	}()
 
-		case Keys:
-			var result []string
-			for k := range store {
-				if strings.HasPrefix(k, cmd.Prefix) {
-					result = append(result, k)
+	return scanner.Err()
+}
+
+func (s *Storage) worker() {
+	// Пусто
+}
+
+func (s *Storage) flushWorker() {
+	for range s.flushTimer.C {
+		s.mu.Lock()
+		if len(s.pending) > 0 {
+			var lines []string
+			for _, cmd := range s.pending {
+				// Сериализуем только Set-команды
+				if cmd.Type == Set {
+					b, err := json.Marshal(cmd)
+					if err == nil {
+						lines = append(lines, string(b))
+					}
 				}
 			}
-			cmd.ErrCh <- nil
-			cmd.RespCh <- result
-
-		default:
-			cmd.ErrCh <- ErrUnknownCommand
-			closeChannels(cmd)
+			if len(lines) > 0 {
+				data := strings.Join(lines, "\n") + "\n"
+				if _, err := s.file.WriteString(data); err == nil {
+					s.file.Sync()
+					s.pending = s.pending[:0]
+				}
+			}
 		}
+		s.mu.Unlock()
 	}
 }
 
@@ -95,6 +175,12 @@ func (s *Storage) Set(key string, value string) error {
 		RespCh: respCh,
 		ErrCh:  errCh,
 	}
+
+	// Добавляем команду в очередь для записи в файл
+	s.mu.Lock()
+	s.pending = append(s.pending, cmd)
+	s.mu.Unlock()
+
 	s.storeCh <- cmd
 	<-respCh
 	return <-errCh

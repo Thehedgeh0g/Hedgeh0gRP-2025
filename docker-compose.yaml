@@ -133,6 +133,8 @@ services:
       PORT: 6370
     ports:
       - "127.0.0.1:6370:6370"
+    volumes:
+      - ./microservices/protokey/data/ProtoKey.data:/app/ProtoKey.data
     networks:
       - app-network
 
